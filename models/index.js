@@ -7,17 +7,6 @@ const env = process.env.NODE_ENV || 'development';
 const config = require('../config/config.js')[env];
 const db = {};
 
-// let sequelize;
-// if (config.use_env_variable) {
-//   sequelize = new Sequelize(process.env[config.use_env_variable], config);
-// } else {
-//   sequelize = new Sequelize(
-//     config.database,
-//     config.username,
-//     config.password,
-//     config
-//   );
-// }
 const sequelize = new Sequelize(
   config.database,
   config.username,
@@ -34,17 +23,6 @@ fs.readdirSync(__dirname)
     );
   })
   .forEach((file) => {
-    // const model = require(path.join(__dirname, file))(
-    //   sequelize,
-    //   Sequelize.DataTypes
-    // );
-    // db[model.name] = model;
-    // console.log('file', file);
-    // const model = require(path.join(__dirname, file));
-    // console.log(model);
-    // console.log(file, model.name);
-    // db[model.name] = model;
-    // model.initiate(sequelize);
     const model = require(path.join(__dirname, file));
 
     // 만약 model이 여러 모델을 포함하는 객체라면, 각각의 모델을 처리해야 합니다.
