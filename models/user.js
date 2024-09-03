@@ -17,6 +17,11 @@ class User extends Sequelize.Model {
           type: Sequelize.STRING(100),
           allowNull: false,
         },
+        // 혹시 몰라서 로고도 넣었습니다.
+        logo: {
+          type: Sequelize.STRING,
+          allowNull: true,
+        },
         contact: {
           type: Sequelize.STRING(50),
           allowNull: false,
@@ -49,6 +54,11 @@ class User extends Sequelize.Model {
           type: Sequelize.INTEGER,
           allowNull: true,
         },
+        role: {
+          type: Sequelize.ENUM('user', 'admin'),
+          allowNull: false,
+          defaultValue: 'user',
+        },
       },
       {
         sequelize,
@@ -63,9 +73,39 @@ class User extends Sequelize.Model {
   }
   static associate(db) {
     //TODO User 외래키 설정
-    db.User.hasMany(db.Review);
-    db.User.hasMany(db.Consult);
-    db.User.hasMany(db.QnA);
+    db.User.hasMany(db.Review, {
+      foreignKey: 'review_writer',
+      sourceKey: 'id',
+    });
+    db.User.hasMany(db.Consult, {
+      foreignKey: 'consult_writer',
+      sourceKey: 'id',
+    });
+    db.User.hasMany(db.QnA, { foreignKey: 'qna_writer', sourceKey: 'id' });
+    db.User.hasMany(db.Presentation, {
+      foreignKey: 'writer',
+      sourceKey: 'id',
+    });
+    const commentModels = ['ReviewComment', 'ConsultComment', 'QnAComment'];
+
+    commentModels.forEach((commentModelName) => {
+      if (db[commentModelName]) {
+        db.User.hasMany(db[commentModelName], {
+          foreignKey: 'commenter',
+          sourceKey: 'id',
+          as: commentModelName.toLowerCase(), // Use lowercase for alias
+        });
+        db[commentModelName].belongsTo(db.User, {
+          foreignKey: 'commenter',
+          as: 'user',
+        });
+      }
+    });
+
+    db.User.hasMany(db.Consulting, {
+      foreignKey: 'writer',
+      sourceKey: 'id',
+    });
   }
 }
 

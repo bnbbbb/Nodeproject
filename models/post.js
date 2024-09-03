@@ -30,7 +30,10 @@ class Review extends Sequelize.Model {
     );
   }
   static associate(db) {
-    db.Review.belongsTo(db.User);
+    db.Review.belongsTo(db.User, {
+      foreignKey: 'review_writer',
+      targetKey: 'id',
+    });
     db.Review.hasMany(db.ReviewComment, {
       foreignKey: 'review_id',
       sourceKey: 'id',
@@ -68,7 +71,10 @@ class Consult extends Sequelize.Model {
     );
   }
   static associate(db) {
-    db.Consult.belongsTo(db.User);
+    db.Consult.belongsTo(db.User, {
+      foreignKey: 'consult_writer',
+      targetKey: 'id',
+    });
     db.Consult.hasMany(db.ConsultComment, {
       foreignKey: 'consult_id',
       sourceKey: 'id',
@@ -106,7 +112,7 @@ class QnA extends Sequelize.Model {
     );
   }
   static associate(db) {
-    db.QnA.belongsTo(db.User);
+    db.QnA.belongsTo(db.User, { foreignKey: 'qna_writer', targetKey: 'id' });
     db.QnA.hasMany(db.QnAComment, {
       foreignKey: 'qna_id',
       sourceKey: 'id',
