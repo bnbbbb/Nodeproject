@@ -1,4 +1,8 @@
+const passport = require('passport');
+
 exports.isLoggedIn = (req, res, next) => {
+  console.log('Authenticated:', passport.authenticate());
+  console.log('User:', req.passport);
   if (req.isAuthenticated()) {
     next();
   } else {

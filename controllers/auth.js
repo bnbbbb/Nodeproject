@@ -1,7 +1,13 @@
 const bcrypt = require('bcrypt');
-const User = require('../models/user');
+const User = require('../models/mysql/user');
 const passport = require('passport');
-const { generateAccessToken, generateRefreshToken } = require('../utils/token');
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  deleteRefreshToken,
+} = require('../utils/token');
+const RefreshTokenSchema = require('../models/mongo/token');
+
 exports.join = async (req, res, next) => {
   const {
     email,
@@ -49,41 +55,49 @@ exports.join = async (req, res, next) => {
 };
 
 exports.login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    // 이메일로 사용자 검색
-    const user = await User.findOne({ where: { email } });
+  passport.authenticate('local', async (err, user, info) => {
+    if (err) {
+      return next(err);
+    }
     if (!user) {
-      return res.status(400).json({ code: 400, error: 'User not found' });
+      return res.status(400).json({ code: 400, message: info.message });
     }
+    try {
+      // JWT 토큰 생성
+      const payload = { id: user.id, email: user.email };
+      const accessToken = generateAccessToken(payload);
+      const refreshToken = await generateRefreshToken(user.id);
 
-    // 비밀번호 확인
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ code: 400, error: 'Invalid credentials' });
+      // 성공 응답
+      return res.status(200).json({ accessToken, refreshToken });
+    } catch (error) {
+      console.error(error);
+      return next(error);
     }
-
-    // JWT 토큰 생성
-    const payload = { id: user.id, email: user.email };
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken();
-
-    // TODO Ref Token 레디스 or 몽고디비에 저장
-
-    // Refresh Token을 쿠키로 전달
-    // res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true });
-
-    // 성공 응답
-    return res.status(200).json({ accessToken, refreshToken });
-  } catch (error) {
-    console.error(error);
-    return next(error);
-  }
+  })(req, res, next);
 };
 
 exports.logout = async (req, res, next) => {
-  req.logout(() => {
-    res.status(200).json({ code: 200, message: '로그아웃 성공' });
-  });
+  try {
+    const { refreshToken } = req.body;
+    console.log(req.body);
+    // refreshToken이 존재하지 않을 경우
+    if (!refreshToken) {
+      return res.status(400).json({
+        code: 400,
+        message: 'Refresh token을 requestbody에 담아주세요',
+      });
+    }
+
+    const result = await deleteRefreshToken(refreshToken);
+
+    return res
+      .status(result.status)
+      .json({ code: result.status, message: result.message });
+  } catch (error) {
+    console.error('Logout failed:', error);
+    return res
+      .status(500)
+      .json({ code: 500, message: 'Internal Server Error' });
+  }
 };

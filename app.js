@@ -3,14 +3,14 @@ const path = require('path');
 const passport = require('passport');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const { sequelize } = require('./models');
+const { sequelize } = require('./models/mysql');
 
 dotenv.config();
 const authRouter = require('./routes/auth');
-// const passportConfig = require('./passport/jwtStrategy');
+const connection = require('./models/mongo/connection');
+const passportConfig = require('./passport');
 
 const app = express();
-// passportConfig();
 
 app.set('port', process.env.PORT || 8080);
 
@@ -24,11 +24,11 @@ sequelize
   .catch((err) => {
     console.error(err);
   });
-
+connection();
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
-
+passportConfig();
 app.use(passport.initialize());
 
 app.use('/api/auth', authRouter);
