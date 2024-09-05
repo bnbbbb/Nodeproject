@@ -79,9 +79,8 @@ exports.login = async (req, res, next) => {
 
 exports.logout = async (req, res, next) => {
   try {
+    const accessToken = req.headers.authorization.split(' ')[1];
     const { refreshToken } = req.body;
-    console.log(req.body);
-    // refreshToken이 존재하지 않을 경우
     if (!refreshToken) {
       return res.status(400).json({
         code: 400,
@@ -89,7 +88,7 @@ exports.logout = async (req, res, next) => {
       });
     }
 
-    const result = await deleteRefreshToken(refreshToken);
+    const result = await deleteRefreshToken(refreshToken, accessToken);
 
     return res
       .status(result.status)
