@@ -47,39 +47,39 @@ const blackListActToken = async (accessToken) => {
   }
 };
 
-const verifyToken = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res
-      .status(404)
-      .json({ code: 404, message: 'Authorization이 비어있습니다.' });
-  }
-  const accessToken = authHeader.split(' ')[1];
+// const verifyToken = async (req, res, next) => {
+//   const authHeader = req.headers.authorization;
+//   if (!authHeader) {
+//     return res
+//       .status(404)
+//       .json({ code: 404, message: 'accessToken이 비어있습니다.' });
+//   }
+//   const accessToken = authHeader?.split(' ')[1];
 
-  try {
-    const isBlacklisted = await blackListSchema.findOne({ token: accessToken });
-    if (isBlacklisted) {
-      return res.status(401).json({
-        code: 401,
-        message: 'acessToken이 이미 블랙리스트에 등록되어있습니다.',
-      });
-    }
-    res.locals.decoded = jwt.verify(accessToken, process.env.SECRET_KEY);
-    return next();
-  } catch (error) {
-    console.log(error);
-    if (error.name === 'TokenExpiredError') {
-      return res.status(419).json({
-        code: 419,
-        message: '토큰이 만료되었습니다.',
-      });
-    }
-    return res.status(401).json({
-      code: 401,
-      message: '유효하지 않은 토큰입니다.',
-    });
-  }
-};
+//   try {
+//     const isBlacklisted = await blackListSchema.findOne({ token: accessToken });
+//     if (isBlacklisted) {
+//       return res.status(401).json({
+//         code: 401,
+//         message: 'acessToken이 이미 블랙리스트에 등록되어있습니다.',
+//       });
+//     }
+//     res.locals.decoded = jwt.verify(accessToken, process.env.SECRET_KEY);
+//     return next();
+//   } catch (error) {
+//     console.log(error);
+//     if (error.name === 'TokenExpiredError') {
+//       return res.status(419).json({
+//         code: 419,
+//         message: '토큰이 만료되었습니다.',
+//       });
+//     }
+//     return res.status(401).json({
+//       code: 401,
+//       message: '유효하지 않은 토큰입니다.',
+//     });
+//   }
+// };
 
 const deleteRefreshToken = async (refreshToken, accessToken) => {
   try {
@@ -100,6 +100,5 @@ const deleteRefreshToken = async (refreshToken, accessToken) => {
 module.exports = {
   generateAccessToken,
   generateRefreshToken,
-  verifyToken,
   deleteRefreshToken,
 };

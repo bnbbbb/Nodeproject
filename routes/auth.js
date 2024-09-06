@@ -9,6 +9,7 @@ router.post('/join', isNotLoggedIn, join);
 
 router.post('/login', isNotLoggedIn, login);
 
-router.post('/logout', verifyToken, logout);
+// router.post('/logout', verifyToken, logout);
+router.post('/logout', isLoggedIn, logout);
 
 module.exports = router;

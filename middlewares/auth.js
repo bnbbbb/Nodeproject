@@ -1,19 +1,64 @@
-const passport = require('passport');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+const blackListSchema = require('../models/mongo/blacklist');
 
-exports.isLoggedIn = (req, res, next) => {
-  console.log('Authenticated:', passport.authenticate());
-  console.log('User:', req.passport);
-  if (req.isAuthenticated()) {
-    next();
-  } else {
-    res.status(403).json({ code: 403, message: '로그인 필요합니다.' });
-  }
+dotenv.config();
+
+const verifyToken = (checkBlacklist = false) => {
+  return async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res
+        .status(404)
+        .json({ code: 404, message: 'accessToken이 비어있습니다.' });
+    }
+    const accessToken = authHeader.split(' ')[1];
+
+    try {
+      // 블랙리스트 체크가 필요하면 확인
+      if (checkBlacklist) {
+        const isBlacklisted = await blackListSchema.findOne({
+          token: accessToken,
+        });
+        if (isBlacklisted) {
+          return res.status(401).json({
+            code: 401,
+            message: 'accessToken이 이미 블랙리스트에 등록되어 있습니다.',
+          });
+        }
+      }
+
+      // 토큰 검증
+      res.locals.decoded = jwt.verify(accessToken, process.env.SECRET_KEY);
+      return next();
+    } catch (error) {
+      console.log(error);
+      if (error.name === 'TokenExpiredError') {
+        return res.status(419).json({
+          code: 419,
+          message: '토큰이 만료되었습니다.',
+        });
+      }
+      return res.status(401).json({
+        code: 401,
+        message: '유효하지 않은 토큰입니다.',
+      });
+    }
+  };
 };
 
-exports.isNotLoggedIn = (req, res, next) => {
+const isNotLoggedIn = (req, res, next) => {
   if (!req.isAuthenticated()) {
     next();
   } else {
     res.status(403).json({ code: 403, message: '로그인한 상태입니다.' });
   }
+};
+
+const isLoggedIn = verifyToken(false); // 블랙리스트 체크 없이 로그인 검증만 수행
+
+module.exports = {
+  verifyToken: verifyToken(true), // 블랙리스트 체크와 함께 검증 수행
+  isNotLoggedIn,
+  isLoggedIn,
 };
