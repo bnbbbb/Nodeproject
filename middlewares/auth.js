@@ -29,7 +29,9 @@ const verifyToken = (checkBlacklist = false) => {
       }
 
       // 토큰 검증
-      res.locals.decoded = jwt.verify(accessToken, process.env.SECRET_KEY);
+      const decoded = jwt.verify(accessToken, process.env.SECRET_KEY);
+      req.user = decoded;
+      res.locals.decoded = decoded;
       return next();
     } catch (error) {
       console.log(error);
@@ -48,7 +50,7 @@ const verifyToken = (checkBlacklist = false) => {
 };
 
 const isNotLoggedIn = (req, res, next) => {
-  if (!req.isAuthenticated()) {
+  if (!req.headers.authorization?.split(' ')[1]) {
     next();
   } else {
     res.status(403).json({ code: 403, message: '로그인한 상태입니다.' });

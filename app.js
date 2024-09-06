@@ -7,6 +7,7 @@ const { sequelize } = require('./models/mysql');
 
 dotenv.config();
 const authRouter = require('./routes/auth');
+const postRouter = require('./routes/post');
 const connection = require('./models/mongo/connection');
 const passportConfig = require('./passport');
 
@@ -32,6 +33,7 @@ passportConfig();
 app.use(passport.initialize());
 
 app.use('/api/auth', authRouter);
+app.use('/api/post', postRouter);
 
 app.use((req, res, next) => {
   const error = new Error(`${req.method} ${req.url} 라우터가 없습니다.`);
@@ -44,7 +46,8 @@ app.use((err, req, res, next) => {
   res.locals.error = process.env.NODE_ENV !== 'production' ? err : {};
   res.status(err.status || 500);
   console.error(err);
-  res.json({ code: err.status || 500, error: err.message });
+  // res.json({ code: err.status || 500, error: err.message });
+  res.status(500).json({ code: 500, message: '서버 오류가 발생했습니다.' });
 });
 
 app.listen(app.get('port'), () => {
