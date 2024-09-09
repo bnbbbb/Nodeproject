@@ -1,6 +1,9 @@
 const { Op } = require('sequelize');
 const { Review, QnA, Consult } = require('../models/mysql/post');
 const User = require('../models/mysql/user');
+const pool = require('../utils/sql');
+const jwt = require('jsonwebtoken');
+
 // 리뷰 관련 메소드
 
 exports.createReview = async (req, res, next) => {
@@ -13,6 +16,16 @@ exports.createReview = async (req, res, next) => {
       content,
     });
     return res.status(200).json({ code: 200, review });
+
+    // 임시 SQL 적용 코드 - 작동x
+    // const sql =
+    //   'INSERT INTO reviews (review_writer, title, content) VALUES (?, ?, ?)';
+    // const [result] = await pool.query(sql, [req.user.id, title, content]);
+    // const reviewId = result.insertId;
+    // return res.status(200).json({
+    //   code: 200,
+    //   review: { id: reviewId, review_writer: req.user.id, title, content },
+    // });
   } catch (error) {
     console.error(error);
     next(error);
@@ -34,7 +47,7 @@ exports.reviewList = async (req, res, next) => {
 // 내가 쓴 리뷰 보기
 exports.myReviewList = async (req, res, next) => {
   try {
-    const userId = req.user.ㅇid;
+    const userId = req.user.id;
     const reviews = await Review.findAll({
       where: { review_writer: userId },
     });
@@ -92,6 +105,7 @@ exports.searchReivew = async (req, res, next) => {
   }
 };
 
+// 리뷰 수정
 exports.editReview = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
@@ -115,4 +129,42 @@ exports.editReview = async (req, res, next) => {
     console.error(error);
     next(error);
   }
+};
+
+// 상세 페이지
+exports.getReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    // 조회수
+    const jwtCookie = req.cookies.jwt; // 쿠키에서 JWT 추출
+    console.log(jwtCookie);
+    const decoded = jwt.verify(jwtCookie, process.env.SECRET_KEY);
+
+    console.log(decoded);
+    const userId = decoded.id;
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ code: 401, message: 'User not authenticated' });
+    }
+    console.log(2);
+    const viewedReviews = req.cookies.viewedReviews || {};
+    console.log(3);
+    if (!viewedReviews[reviewId]) {
+      // 중복 조회가 아니라면, 조회수 증가 및 쿠키에 기록 추가
+      await Review.increment('hits', { where: { id: reviewId } });
+
+      viewedReviews[reviewId] = true;
+      res.cookie('viewedReviews', JSON.stringify(viewedReviews), {
+        // 쿠키 만료 시간 설정 (24시간)
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+      });
+    }
+
+    const review = await Review.findOne({
+      where: { id: reviewId },
+    });
+    return res.status(200).json({ code: 200, message: review });
+  } catch (error) {}
 };

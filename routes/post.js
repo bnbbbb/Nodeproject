@@ -11,6 +11,7 @@ const {
   editReview,
   myReviewList,
   searchReivew,
+  getReview,
 } = require('../controllers/post');
 const router = express.Router();
 
@@ -23,5 +24,7 @@ router.patch('/editreview/:reviewId', editReview);
 router.get('/myreviews', verifyToken, myReviewList);
 
 router.get('/reviews/search', searchReivew);
+
+router.get('/reviews/:reviewId', getReview);
 
 module.exports = router;

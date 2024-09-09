@@ -10,7 +10,10 @@ const authRouter = require('./routes/auth');
 const postRouter = require('./routes/post');
 const connection = require('./models/mongo/connection');
 const passportConfig = require('./passport');
-
+// 조회수
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+//
 const app = express();
 
 app.set('port', process.env.PORT || 8080);
@@ -26,6 +29,11 @@ sequelize
     console.error(err);
   });
 connection();
+
+// 조회수
+app.use(cookieParser());
+//
+
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
