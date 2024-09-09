@@ -8,9 +8,10 @@ const verifyToken = (checkBlacklist = false) => {
   return async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      return res
-        .status(404)
-        .json({ code: 404, message: 'accessToken이 비어있습니다.' });
+      // return res
+      //   .status(404)
+      //   .json({ code: 404, message: 'accessToken이 비어있습니다.' });
+      return next();
     }
     const accessToken = authHeader.split(' ')[1];
 
@@ -64,3 +65,5 @@ module.exports = {
   isNotLoggedIn,
   isLoggedIn,
 };
+
+// TODO accessToken 재발급

@@ -7,7 +7,9 @@ const { sequelize } = require('./models/mysql');
 
 dotenv.config();
 const authRouter = require('./routes/auth');
-const postRouter = require('./routes/post');
+const reviewRouter = require('./routes/review');
+const qnaRouter = require('./routes/qna');
+const consultRouter = require('./routes/consult');
 const connection = require('./models/mongo/connection');
 const passportConfig = require('./passport');
 // 조회수
@@ -41,7 +43,9 @@ passportConfig();
 app.use(passport.initialize());
 
 app.use('/api/auth', authRouter);
-app.use('/api/post', postRouter);
+app.use('/api/review', reviewRouter);
+app.use('/api/qna', qnaRouter);
+app.use('/api/consult', consultRouter);
 
 app.use((req, res, next) => {
   const error = new Error(`${req.method} ${req.url} 라우터가 없습니다.`);

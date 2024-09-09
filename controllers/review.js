@@ -62,7 +62,7 @@ exports.myReviewList = async (req, res, next) => {
 };
 
 // 검색한 리뷰 보기
-exports.searchReivew = async (req, res, next) => {
+exports.searchReview = async (req, res, next) => {
   try {
     const query = req.query.query;
     console.log(query);
@@ -135,36 +135,66 @@ exports.editReview = async (req, res, next) => {
 exports.getReview = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
-    // 조회수
-    const jwtCookie = req.cookies.jwt; // 쿠키에서 JWT 추출
-    console.log(jwtCookie);
-    const decoded = jwt.verify(jwtCookie, process.env.SECRET_KEY);
+    let userId = null;
 
-    console.log(decoded);
-    const userId = decoded.id;
-    if (!userId) {
-      return res
-        .status(401)
-        .json({ code: 401, message: 'User not authenticated' });
-    }
-    console.log(2);
-    const viewedReviews = req.cookies.viewedReviews || {};
-    console.log(3);
-    if (!viewedReviews[reviewId]) {
-      // 중복 조회가 아니라면, 조회수 증가 및 쿠키에 기록 추가
-      await Review.increment('hits', { where: { id: reviewId } });
+    // 로그인한 사용자 확인
 
-      viewedReviews[reviewId] = true;
-      res.cookie('viewedReviews', JSON.stringify(viewedReviews), {
-        // 쿠키 만료 시간 설정 (24시간)
-        maxAge: 24 * 60 * 60 * 1000,
-        httpOnly: true,
-      });
+    if (req.user) {
+      userId = req.user.id;
     }
 
+    // 조회수 중복 방지
+    let viewedData = {};
+
+    if (req.cookies.viewedData) {
+      try {
+        viewedData = JSON.parse(req.cookies.viewedData);
+      } catch (err) {
+        console.error('쿠키 파싱 오류:', err);
+      }
+    }
+
+    viewedData.reviews = viewedData.reviews || {};
+
+    // 로그인 사용자 처리
+    if (userId) {
+      if (!viewedData.reviews[userId]) {
+        viewedData.reviews[userId] = {};
+      }
+      if (!viewedData.qnas[userId][reviewId]) {
+        await Review.increment('hits', { where: { id: reviewId } });
+        viewedData.reviews[userId][reviewId] = true;
+        res.cookie('viewedData', JSON.stringify(viewedData), {
+          maxAge: 24 * 60 * 60 * 1000,
+          httpOnly: true,
+        });
+      }
+    }
+
+    // 비로그인 사용자 처리
+    else {
+      const ipAddress = req.ip;
+      if (!viewedData.reviews[ipAddress]) {
+        viewedData.reviews[ipAddress] = {};
+      }
+      if (!viewedData.reviews[ipAddress][reviewId]) {
+        await Review.increment('hits', { where: { id: reviewId } });
+        viewedData.reviews[ipAddress][reviewId] = true;
+        res.cookie('viewedData', JSON.stringify(viewedData), {
+          maxAge: 24 * 60 * 60 * 1000,
+          httpOnly: true,
+        });
+      }
+    }
+
+    console.log(viewedData);
     const review = await Review.findOne({
       where: { id: reviewId },
     });
+
     return res.status(200).json({ code: 200, message: review });
-  } catch (error) {}
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
 };
