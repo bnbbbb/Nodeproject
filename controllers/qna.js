@@ -173,11 +173,9 @@ exports.getQnA = async (req, res, next) => {
     // 비로그인 사용자 처리
     else {
       const ipAddress = req.ip;
-
       if (!viewedData.qnas[ipAddress]) {
         viewedData.qnas[ipAddress] = {};
       }
-
       if (!viewedData.qnas[ipAddress][qnaId]) {
         await QnA.increment('hits', { where: { id: qnaId } });
         viewedData.qnas[ipAddress][qnaId] = true;
@@ -188,7 +186,6 @@ exports.getQnA = async (req, res, next) => {
       }
     }
 
-    console.log(viewedData);
     const qna = await QnA.findOne({
       where: { id: qnaId },
     });

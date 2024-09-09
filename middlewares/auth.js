@@ -4,14 +4,18 @@ const blackListSchema = require('../models/mongo/blacklist');
 
 dotenv.config();
 
-const verifyToken = (checkBlacklist = false) => {
+const verifyToken = (required = true, checkBlacklist = false) => {
   return async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      // return res
-      //   .status(404)
-      //   .json({ code: 404, message: 'accessToken이 비어있습니다.' });
-      return next();
+      if (required) {
+        return res.status(401).json({
+          code: 401,
+          message: '로그인이 필요합니다. AccessToken이 비어 있습니다.',
+        });
+      } else {
+        return next(); // 로그인이 필요 없는 경우
+      }
     }
     const accessToken = authHeader.split(' ')[1];
 
@@ -58,12 +62,11 @@ const isNotLoggedIn = (req, res, next) => {
   }
 };
 
-const isLoggedIn = verifyToken(false); // 블랙리스트 체크 없이 로그인 검증만 수행
-
+const isLoggedIn = verifyToken(false, false); // 블랙리스트 체크 없이 로그인 검증만 수행
+const notUser = verifyToken(false, false);
 module.exports = {
-  verifyToken: verifyToken(true), // 블랙리스트 체크와 함께 검증 수행
+  verifyToken: verifyToken(true, true), // 블랙리스트 체크와 함께 검증 수행
   isNotLoggedIn,
   isLoggedIn,
+  notUser,
 };
-
-// TODO accessToken 재발급

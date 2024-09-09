@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const refreshTokenSchema = require('../models/mongo/token');
 const blackListSchema = require('../models/mongo/blacklist');
-
+const User = require('../models/mysql/user');
 dotenv.config();
 
 const generateAccessToken = (payload) => {
@@ -47,40 +47,6 @@ const blackListActToken = async (accessToken) => {
   }
 };
 
-// const verifyToken = async (req, res, next) => {
-//   const authHeader = req.headers.authorization;
-//   if (!authHeader) {
-//     return res
-//       .status(404)
-//       .json({ code: 404, message: 'accessToken이 비어있습니다.' });
-//   }
-//   const accessToken = authHeader?.split(' ')[1];
-
-//   try {
-//     const isBlacklisted = await blackListSchema.findOne({ token: accessToken });
-//     if (isBlacklisted) {
-//       return res.status(401).json({
-//         code: 401,
-//         message: 'acessToken이 이미 블랙리스트에 등록되어있습니다.',
-//       });
-//     }
-//     res.locals.decoded = jwt.verify(accessToken, process.env.SECRET_KEY);
-//     return next();
-//   } catch (error) {
-//     console.log(error);
-//     if (error.name === 'TokenExpiredError') {
-//       return res.status(419).json({
-//         code: 419,
-//         message: '토큰이 만료되었습니다.',
-//       });
-//     }
-//     return res.status(401).json({
-//       code: 401,
-//       message: '유효하지 않은 토큰입니다.',
-//     });
-//   }
-// };
-
 const deleteRefreshToken = async (refreshToken, accessToken) => {
   try {
     const result = await refreshTokenSchema.findOne({ token: refreshToken });
@@ -97,8 +63,49 @@ const deleteRefreshToken = async (refreshToken, accessToken) => {
   }
 };
 
+// TODO accessToken 재발급
+const refreshAccessToken = async (req, res, next) => {
+  try {
+    // body값으로
+    // const refreshToken = req.body.refreshToken;
+    // cookies값으로
+    const refreshToken = req.cookies.refreshtoken;
+    console.log(req.cookies);
+    if (!refreshToken) {
+      return res.status(400).json({
+        code: 400,
+        message: 'RefreshToken 이 필요합니다.',
+      });
+    }
+
+    const existingRefToken = await refreshTokenSchema.findOne({
+      token: refreshToken,
+    });
+    const userId = existingRefToken.userId;
+    if (!existingRefToken) {
+      return res.status(401).json({
+        code: 401,
+        message: 'refresh token이 유효하지 않습니다.',
+      });
+    }
+    const user = await User.findOne({ where: { id: userId } });
+    const useremail = user.email;
+    const payload = { id: userId, email: useremail };
+    const newAccessToken = generateAccessToken(payload);
+
+    return res.status(200).json({
+      code: 200,
+      message: newAccessToken,
+    });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
 module.exports = {
   generateAccessToken,
   generateRefreshToken,
   deleteRefreshToken,
+  refreshAccessToken,
 };

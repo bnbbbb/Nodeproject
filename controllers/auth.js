@@ -1,12 +1,15 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/mysql/user');
 const passport = require('passport');
+const dotenv = require('dotenv');
+
 const {
   generateAccessToken,
   generateRefreshToken,
   deleteRefreshToken,
 } = require('../utils/token');
-const RefreshTokenSchema = require('../models/mongo/token');
+
+dotenv.config();
 
 exports.join = async (req, res, next) => {
   const {
@@ -68,7 +71,13 @@ exports.login = async (req, res, next) => {
       const accessToken = generateAccessToken(payload);
       const refreshToken = await generateRefreshToken(user.id);
 
-      // 성공 응답
+      res.cookie('refreshtoken', refreshToken, {
+        maxAge:
+          parseInt(process.env.REFRESHTOKEN_EXPIRESIN) * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+      });
+
       return res.status(200).json({ accessToken, refreshToken });
     } catch (error) {
       console.error(error);

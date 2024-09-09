@@ -175,7 +175,6 @@ exports.getConsult = async (req, res, next) => {
       if (!viewedData.consults[ipAddress]) {
         viewedData.consults[ipAddress] = {};
       }
-
       if (!viewedData.consults[ipAddress][consultId]) {
         await Consult.increment('hits', { where: { id: consultId } });
         viewedData.consults[ipAddress][consultId] = true;
@@ -187,7 +186,6 @@ exports.getConsult = async (req, res, next) => {
       }
     }
 
-    console.log(viewedData);
     const consult = await Consult.findOne({
       where: { id: consultId },
     });

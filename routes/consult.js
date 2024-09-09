@@ -4,6 +4,7 @@ const {
   isLoggedIn,
   isNotLoggedIn,
   verifyToken,
+  notUser,
 } = require('../middlewares/auth');
 
 const {
@@ -26,6 +27,6 @@ router.get('/mine', verifyToken, myConsultList);
 
 router.get('/search', searchConsult);
 
-router.get('/:consultId', verifyToken, getConsult);
+router.get('/:consultId', notUser, getConsult);
 
 module.exports = router;

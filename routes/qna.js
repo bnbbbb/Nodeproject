@@ -4,6 +4,7 @@ const {
   isLoggedIn,
   isNotLoggedIn,
   verifyToken,
+  notUser,
 } = require('../middlewares/auth');
 const {
   createQnA,
@@ -25,6 +26,6 @@ router.get('/mine', verifyToken, myQnAList);
 
 router.get('/search', searchQnA);
 
-router.get('/:qnaId', verifyToken, getQnA);
+router.get('/:qnaId', notUser, getQnA);
 
 module.exports = router;

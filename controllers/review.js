@@ -155,7 +155,7 @@ exports.getReview = async (req, res, next) => {
     }
 
     viewedData.reviews = viewedData.reviews || {};
-
+    console.log(reviewId);
     // 로그인 사용자 처리
     if (userId) {
       if (!viewedData.reviews[userId]) {
@@ -187,7 +187,6 @@ exports.getReview = async (req, res, next) => {
       }
     }
 
-    console.log(viewedData);
     const review = await Review.findOne({
       where: { id: reviewId },
     });
