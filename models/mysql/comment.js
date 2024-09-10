@@ -25,7 +25,7 @@ class ReviewComment extends Sequelize.Model {
       foreignKey: 'review_id',
       targetKey: 'id',
     });
-    db.ReviewComment.belongsTo(db.ReviewComment, {
+    db.ReviewComment.belongsTo(db.User, {
       foreignKey: 'commenter',
       targetKey: 'id',
     });
@@ -57,7 +57,7 @@ class ConsultComment extends Sequelize.Model {
       foreignKey: 'consult_id',
       targetKey: 'id',
     });
-    db.ConsultComment.belongsTo(db.ConsultComment, {
+    db.ConsultComment.belongsTo(db.User, {
       foreignKey: 'commenter',
       targetKey: 'id',
     });
@@ -89,7 +89,7 @@ class QnAComment extends Sequelize.Model {
       foreignKey: 'qna_id',
       targetKey: 'id',
     });
-    db.QnAComment.belongsTo(db.QnAComment, {
+    db.QnAComment.belongsTo(db.User, {
       foreignKey: 'commenter',
       targetKey: 'id',
     });

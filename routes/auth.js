@@ -1,6 +1,5 @@
 const express = require('express');
-const { join, login, logout } = require('../controllers/auth');
-const passport = require('passport');
+const { join, login, logout, userUpdate } = require('../controllers/auth');
 const {
   isLoggedIn,
   isNotLoggedIn,
@@ -17,4 +16,7 @@ router.post('/login', isNotLoggedIn, login);
 router.post('/logout', isLoggedIn, logout);
 
 router.post('/refresh', isLoggedIn, refreshAccessToken);
+
+router.post('/update', verifyToken, userUpdate);
+
 module.exports = router;

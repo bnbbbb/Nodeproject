@@ -1,5 +1,4 @@
 const express = require('express');
-const passport = require('passport');
 const {
   isLoggedIn,
   isNotLoggedIn,
@@ -21,7 +20,7 @@ router.post('/create', verifyToken, createReview);
 
 router.get('/list', reviewList);
 
-router.patch('/edit/:reviewId', editReview);
+router.patch('/edit/:reviewId', verifyToken, editReview);
 
 router.get('/mine', verifyToken, myReviewList);
 

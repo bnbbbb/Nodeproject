@@ -1,9 +1,9 @@
 const { Op } = require('sequelize');
-const { Consult } = require('../models/mysql/post');
+const { Consult } = require('../models/mysql/category');
 const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
-
+const { ConsultComment } = require('../models/mysql/comment');
 // 리뷰 관련 메소드
 
 exports.createConsult = async (req, res, next) => {
@@ -110,16 +110,22 @@ exports.editConsult = async (req, res, next) => {
   try {
     const { consultId } = req.params;
     const updateData = req.body;
-
-    const [updatedRowsCount] = await consult.update(updateData, {
+    const consult = await Consult.findByPk(consultId);
+    if (consult.consult_writer !== req.user.id) {
+      return res.status(403).json({
+        code: 403,
+        message: '본인이 작성한 리뷰만 수정할 수 있습니다. ',
+      });
+    }
+    const [updatedCount] = await Consult.update(updateData, {
       where: { id: consultId },
       paranoid: false,
     });
 
-    if (updatedRowsCount === 0) {
+    if (updatedCount === 0) {
       return res
         .status(404)
-        .json({ code: 404, message: '해당 리뷰를 찾지 못했습니다.' });
+        .json({ code: 404, message: '상담 수정 중 오류가 발생했습니다.' });
     }
 
     const updateConsult = await Consult.findByPk(consultId);
@@ -188,6 +194,11 @@ exports.getConsult = async (req, res, next) => {
 
     const consult = await Consult.findOne({
       where: { id: consultId },
+      include: [
+        {
+          model: ConsultComment,
+        },
+      ],
     });
 
     return res.status(200).json({ code: 200, message: consult });

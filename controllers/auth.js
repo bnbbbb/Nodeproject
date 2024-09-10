@@ -89,13 +89,21 @@ exports.login = async (req, res, next) => {
 exports.logout = async (req, res, next) => {
   try {
     const accessToken = req.headers.authorization.split(' ')[1];
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies.refreshtoken;
     if (!refreshToken) {
       return res.status(400).json({
         code: 400,
-        message: 'Refresh token을 requestbody에 담아주세요',
+        message: 'RefreshToken이 쿠키에 없습니다. ',
       });
     }
+    // req.body 에 담는거
+    // const { refreshToken } = req.body;
+    // if (!refreshToken) {
+    //   return res.status(400).json({
+    //     code: 400,
+    //     message: 'Refresh token을 requestbody에 담아주세요',
+    //   });
+    // }
 
     const result = await deleteRefreshToken(refreshToken, accessToken);
 
@@ -104,8 +112,29 @@ exports.logout = async (req, res, next) => {
       .json({ code: result.status, message: result.message });
   } catch (error) {
     console.error('Logout failed:', error);
-    return res
-      .status(500)
-      .json({ code: 500, message: 'Internal Server Error' });
+    next(error);
+  }
+};
+
+// TODO 회원정보 수정
+exports.userUpdate = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const updateUser = req.body;
+    const [updatedCount] = await User.update(updateUser, {
+      where: { id: userId },
+      paranoid: false,
+    });
+
+    if (updatedCount === 0) {
+      return res
+        .status(404)
+        .json({ code: 404, message: '해당 유저를 찾지 못했습니다.' });
+    }
+    const updatedUser = await User.findByPk(userId);
+    return res.status(200).json({ code: 200, updatedUser });
+  } catch (error) {
+    console.error(error);
+    next(error);
   }
 };

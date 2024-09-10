@@ -10,6 +10,7 @@ const authRouter = require('./routes/auth');
 const reviewRouter = require('./routes/review');
 const qnaRouter = require('./routes/qna');
 const consultRouter = require('./routes/consult');
+const commentRouter = require('./routes/comment');
 const connection = require('./models/mongo/connection');
 const passportConfig = require('./passport');
 // 조회수
@@ -46,6 +47,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/review', reviewRouter);
 app.use('/api/qna', qnaRouter);
 app.use('/api/consult', consultRouter);
+app.use('/api/comment', commentRouter);
 
 app.use((req, res, next) => {
   const error = new Error(`${req.method} ${req.url} 라우터가 없습니다.`);

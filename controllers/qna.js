@@ -1,8 +1,9 @@
 const { Op } = require('sequelize');
-const { QnA } = require('../models/mysql/post');
+const { QnA } = require('../models/mysql/category');
 const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
+const { QnAComment } = require('../models/mysql/comment');
 
 // 리뷰 관련 메소드
 
@@ -109,18 +110,23 @@ exports.searchQnA = async (req, res, next) => {
 exports.editQnA = async (req, res, next) => {
   try {
     const { qnaId } = req.params;
-    console.log(qnaId);
     const updateData = req.body;
-
-    const [updatedRowsCount] = await QnA.update(updateData, {
+    const qna = await QnA.findByPk(qnaId);
+    if (qna.qna_writer !== req.user.id) {
+      return res.status(403).json({
+        code: 403,
+        message: '본인이 작성한 리뷰만 수정할 수 있습니다. ',
+      });
+    }
+    const [updatedCount] = await QnA.update(updateData, {
       where: { id: qnaId },
       paranoid: false,
     });
 
-    if (updatedRowsCount === 0) {
+    if (updatedCount === 0) {
       return res
         .status(404)
-        .json({ code: 404, message: '해당 리뷰를 찾지 못했습니다.' });
+        .json({ code: 404, message: 'QnA 수정 중 오류가 발생했습니다.' });
     }
 
     const updateQnA = await QnA.findByPk(qnaId);
@@ -136,6 +142,7 @@ exports.editQnA = async (req, res, next) => {
 exports.getQnA = async (req, res, next) => {
   try {
     const { qnaId } = req.params;
+
     let userId = null;
 
     // 로그인한 사용자 확인
@@ -188,6 +195,11 @@ exports.getQnA = async (req, res, next) => {
 
     const qna = await QnA.findOne({
       where: { id: qnaId },
+      include: [
+        {
+          model: QnAComment,
+        },
+      ],
     });
 
     return res.status(200).json({ code: 200, message: qna });

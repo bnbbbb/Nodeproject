@@ -1,5 +1,4 @@
 const express = require('express');
-const passport = require('passport');
 const {
   isLoggedIn,
   isNotLoggedIn,
@@ -20,7 +19,7 @@ router.post('/create', verifyToken, createQnA);
 
 router.get('/list', qnaList);
 
-router.patch('/edit/:qnaId', editQnA);
+router.patch('/edit/:qnaId', verifyToken, editQnA);
 
 router.get('/mine', verifyToken, myQnAList);
 
