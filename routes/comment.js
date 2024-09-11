@@ -10,10 +10,16 @@ const {
   editComment,
   deleteComment,
 } = require('../controllers/comment');
+const isAdmin = require('../middlewares/admin');
 
 router = express.Router();
 
-router.post('/:type/:postId', verifyToken, createComment);
+router.post('/:type/:postId', verifyToken, async (req, res, next) => {
+  if (req.params.type === 'qna') {
+    return isAdmin(req, res, () => createComment(req, res, next));
+  }
+  createComment;
+});
 
 router.patch(
   '/edit/:type/category/:categoryId/comment/:commentId',
@@ -26,4 +32,5 @@ router.delete(
   verifyToken,
   deleteComment
 );
+
 module.exports = router;

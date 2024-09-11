@@ -14,13 +14,13 @@ const verifyToken = (required = true, checkBlacklist = false) => {
           message: '로그인이 필요합니다. AccessToken이 비어 있습니다.',
         });
       } else {
-        return next(); // 로그인이 필요 없는 경우
+        return next();
       }
     }
     const accessToken = authHeader.split(' ')[1];
 
     try {
-      // 블랙리스트 체크가 필요하면 확인
+      // 블랙리스트 체크 확인
       if (checkBlacklist) {
         const isBlacklisted = await blackListSchema.findOne({
           token: accessToken,

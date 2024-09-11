@@ -81,8 +81,15 @@ class User extends Sequelize.Model {
       foreignKey: 'consult_writer',
       sourceKey: 'id',
     });
-    db.User.hasMany(db.QnA, { foreignKey: 'qna_writer', sourceKey: 'id' });
+    db.User.hasMany(db.QnA, {
+      foreignKey: 'qna_writer',
+      sourceKey: 'id',
+    });
     db.User.hasMany(db.Presentation, {
+      foreignKey: 'writer',
+      sourceKey: 'id',
+    });
+    db.User.hasMany(db.Foundation, {
       foreignKey: 'writer',
       sourceKey: 'id',
     });
@@ -100,11 +107,6 @@ class User extends Sequelize.Model {
           as: 'user',
         });
       }
-    });
-
-    db.User.hasMany(db.Consulting, {
-      foreignKey: 'writer',
-      sourceKey: 'id',
     });
   }
 }

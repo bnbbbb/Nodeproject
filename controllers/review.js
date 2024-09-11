@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const { ReviewComment } = require('../models/mysql/comment');
 
 // 리뷰 관련 메소드
-
 exports.createReview = async (req, res, next) => {
   try {
     const { title, content } = req.body;
@@ -40,7 +39,6 @@ exports.reviewList = async (req, res, next) => {
     return res.status(200).json({ code: 200, reviews });
   } catch (error) {
     console.log(error);
-    // return res.status(500).json({ code: 500, message: error.message });
     next(error);
   }
 };
