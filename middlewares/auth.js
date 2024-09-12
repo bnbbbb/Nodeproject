@@ -7,6 +7,7 @@ dotenv.config();
 const verifyToken = (required = true, checkBlacklist = false) => {
   return async (req, res, next) => {
     const authHeader = req.headers.authorization;
+
     if (!authHeader) {
       if (required) {
         return res.status(401).json({

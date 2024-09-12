@@ -13,7 +13,7 @@ class Presentation extends Sequelize.Model {
           allowNull: true,
         },
         content: {
-          type: Sequelize.STRING,
+          type: Sequelize.TEXT,
           allowNull: true,
         },
       },

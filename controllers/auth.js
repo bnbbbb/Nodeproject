@@ -11,7 +11,7 @@ const {
 
 dotenv.config();
 
-exports.join = async (req, res, next) => {
+const join = async (req, res, next) => {
   const {
     email,
     username,
@@ -57,7 +57,7 @@ exports.join = async (req, res, next) => {
   }
 };
 
-exports.login = async (req, res, next) => {
+const login = async (req, res, next) => {
   passport.authenticate('local', async (err, user, info) => {
     if (err) {
       return next(err);
@@ -86,7 +86,7 @@ exports.login = async (req, res, next) => {
   })(req, res, next);
 };
 
-exports.logout = async (req, res, next) => {
+const logout = async (req, res, next) => {
   try {
     const accessToken = req.headers.authorization.split(' ')[1];
     const refreshToken = req.cookies.refreshtoken;
@@ -117,7 +117,7 @@ exports.logout = async (req, res, next) => {
 };
 
 // TODO 회원정보 수정
-exports.userUpdate = async (req, res, next) => {
+const userUpdate = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const updateUser = req.body;
@@ -145,7 +145,7 @@ exports.userUpdate = async (req, res, next) => {
   }
 };
 
-exports.userPasswordChange = async (req, res, next) => {
+const userPasswordChange = async (req, res, next) => {
   try {
     // 유저 찾기
     const { currentPassword, newPassword } = req.body;
@@ -178,7 +178,7 @@ exports.userPasswordChange = async (req, res, next) => {
   }
 };
 
-exports.findUserEmail = async (req, res, next) => {
+const findUserEmail = async (req, res, next) => {
   try {
     const { username, contact } = req.body;
     const user = await User.findOne({
@@ -200,7 +200,7 @@ exports.findUserEmail = async (req, res, next) => {
   }
 };
 
-exports.findUserPassword = async (req, res, next) => {
+const findUserPassword = async (req, res, next) => {
   try {
     const { email, username, contact } = req.body;
     const user = await User.findOne({
@@ -224,7 +224,7 @@ exports.findUserPassword = async (req, res, next) => {
   }
 };
 
-exports.resetPassword = async (req, res, next) => {
+const resetPassword = async (req, res, next) => {
   try {
     //
     const { userId } = req.params;
@@ -253,4 +253,34 @@ exports.resetPassword = async (req, res, next) => {
     console.error(error);
     next(error);
   }
+};
+
+const deleteUser = async (req, res, next) => {
+  try {
+    //
+    console.log(req.user.id);
+
+    const userId = req.user.id;
+    console.log(userId);
+
+    await User.destroy({ where: { id: userId } });
+    return res
+      .status(200)
+      .json({ code: 200, message: '회원탈퇴가 완료되었습니다.' });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+module.exports = {
+  join,
+  login,
+  logout,
+  userUpdate,
+  userPasswordChange,
+  findUserEmail,
+  findUserPassword,
+  resetPassword,
+  deleteUser,
 };
