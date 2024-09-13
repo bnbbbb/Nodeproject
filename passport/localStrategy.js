@@ -2,6 +2,8 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const User = require('../models/mysql/user');
 
@@ -45,6 +47,7 @@ module.exports = () => {
       },
       async (jwtPayload, done) => {
         try {
+          console.log(process.env.SECRET_KEY);
           const user = await User.findByPk(jwtPayload.id);
           if (user) {
             return done(null, user);

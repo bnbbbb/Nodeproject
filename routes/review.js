@@ -16,16 +16,16 @@ const {
 } = require('../controllers/review');
 const router = express.Router();
 
-router.post('/create', verifyToken, createReview);
+router.post('/api/review/create', verifyToken, createReview);
 
-router.get('/list', reviewList);
+router.get('/api/review/list', reviewList);
 
-router.patch('/edit/:reviewId', verifyToken, editReview);
+router.patch('/api/review/edit/:reviewId', verifyToken, editReview);
 
-router.get('/mine', verifyToken, myReviewList);
+router.get('/api/review/mine', verifyToken, myReviewList);
 
-router.get('/search', searchReview);
+router.get('/api/review/search', searchReview);
 
-router.get('/:reviewId', notUser, getReview);
+router.get('/api/review/:reviewId', notUser, getReview);
 
 module.exports = router;

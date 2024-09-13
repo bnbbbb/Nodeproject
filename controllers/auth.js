@@ -63,13 +63,17 @@ const login = async (req, res, next) => {
       return next(err);
     }
     if (!user) {
-      return res.status(400).json({ code: 400, message: info.message });
+      return res.status(401).json({ code: 401, message: info.message });
     }
     try {
       // JWT 토큰 생성
       const payload = { id: user.id, email: user.email };
       const accessToken = generateAccessToken(payload);
       const refreshToken = await generateRefreshToken(user.id);
+
+      // 유저 정보 넘겨줄 때 비밀번호 제외
+      const userWithoutPassword = { ...user.toJSON() };
+      delete userWithoutPassword.password;
 
       res.cookie('refreshtoken', refreshToken, {
         maxAge:
@@ -78,7 +82,9 @@ const login = async (req, res, next) => {
         secure: process.env.NODE_ENV === 'production',
       });
 
-      return res.status(200).json({ accessToken, refreshToken });
+      return res
+        .status(200)
+        .json({ accessToken, refreshToken, userWithoutPassword });
     } catch (error) {
       console.error(error);
       return next(error);

@@ -16,16 +16,16 @@ const {
 } = require('../controllers/consult');
 const router = express.Router();
 
-router.post('/create', verifyToken, createConsult);
+router.post('/api/consult/create', verifyToken, createConsult);
 
-router.get('/list', consultList);
+router.get('/api/consult/list', consultList);
 
-router.patch('/edit/:consultId', verifyToken, editConsult);
+router.patch('/api/consult/edit/:consultId', verifyToken, editConsult);
 
-router.get('/mine', verifyToken, myConsultList);
+router.get('/api/consult/mine', verifyToken, myConsultList);
 
-router.get('/search', searchConsult);
+router.get('/api/consult/search', searchConsult);
 
-router.get('/:consultId', notUser, getConsult);
+router.get('/api/consult/:consultId', notUser, getConsult);
 
 module.exports = router;

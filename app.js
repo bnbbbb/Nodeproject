@@ -4,6 +4,11 @@ const passport = require('passport');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { sequelize } = require('./models/mysql');
+// 스웨거
+// const { swaggerUi } = require('./swagger/swagger');
+const swaggerUi = require('swagger-ui-express');
+// const swaggerUi = require('swagger-ui-express');
+const swaggerFile = require('./swagger/swagger-output.json'); // 생성된 파일 가져오기
 
 dotenv.config();
 const authRouter = require('./routes/auth');
@@ -45,13 +50,27 @@ app.use(express.json());
 passportConfig();
 app.use(passport.initialize());
 
-app.use('/api/auth', authRouter);
-app.use('/api/review', reviewRouter);
-app.use('/api/qna', qnaRouter);
-app.use('/api/consult', consultRouter);
-app.use('/api/comment', commentRouter);
-app.use('/api/foundation', foundationRouter);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
+
+app.use('', authRouter);
+app.use('', reviewRouter);
+app.use('', qnaRouter);
+app.use('', consultRouter);
+app.use('', commentRouter);
+app.use('', foundationRouter);
+
+// admin
 app.use('/api/foundation', adminFdRouter);
+
+// app.use('/api/auth', authRouter);
+// app.use('/api/review', reviewRouter);
+// app.use('/api/qna', qnaRouter);
+// app.use('/api/consult', consultRouter);
+// app.use('/api/comment', commentRouter);
+// app.use('/api/foundation', foundationRouter);
+// app.use('/api/foundation', adminFdRouter);
+
+// app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 app.use((req, res, next) => {
   const error = new Error(`${req.method} ${req.url} 라우터가 없습니다.`);

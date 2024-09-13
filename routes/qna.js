@@ -15,16 +15,16 @@ const {
 } = require('../controllers/qna');
 const router = express.Router();
 
-router.post('/create', verifyToken, createQnA);
+router.post('/api/qna/create', verifyToken, createQnA);
 
-router.get('/list', qnaList);
+router.get('/api/qna/list', qnaList);
 
-router.patch('/edit/:qnaId', verifyToken, editQnA);
+router.patch('/api/qna/edit/:qnaId', verifyToken, editQnA);
 
-router.get('/mine', verifyToken, myQnAList);
+router.get('/api/qna/mine', verifyToken, myQnAList);
 
-router.get('/search', searchQnA);
+router.get('/api/qna/search', searchQnA);
 
-router.get('/:qnaId', notUser, getQnA);
+router.get('/api/qna/:qnaId', notUser, getQnA);
 
 module.exports = router;
