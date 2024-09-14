@@ -4,7 +4,7 @@ const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
 const { ConsultComment } = require('../models/mysql/comment');
-// 리뷰 관련 메소드
+const moment = require('moment-timezone');
 
 exports.createConsult = async (req, res, next) => {
   try {
@@ -36,7 +36,20 @@ exports.createConsult = async (req, res, next) => {
 exports.consultList = async (req, res, next) => {
   try {
     const consults = await Consult.findAll();
-    return res.status(200).json({ code: 200, consults });
+
+    const formatteConsults = consults.map((consult) => {
+      return {
+        ...consult.toJSON(),
+        createdAt: moment(consult.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(consult.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formatteConsults });
   } catch (error) {
     console.log(error);
     // return res.status(500).json({ code: 500, message: error.message });
@@ -51,7 +64,19 @@ exports.myConsultList = async (req, res, next) => {
     const consults = await Consult.findAll({
       where: { consult_writer: userId },
     });
-    return res.status(200).json({ code: 200, consults });
+    const formatteConsults = consults.map((consult) => {
+      return {
+        ...consult.toJSON(),
+        createdAt: moment(consult.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(consult.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formatteConsults });
   } catch (error) {
     console.error(error);
     // return res
@@ -98,7 +123,19 @@ exports.searchConsult = async (req, res, next) => {
         ],
       },
     });
-    return res.status(200).json({ code: 200, consults });
+    const formatteConsults = consults.map((consult) => {
+      return {
+        ...consult.toJSON(),
+        createdAt: moment(consult.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(consult.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formatteConsults });
   } catch (error) {
     console.error('Error:', error); // 오류 로그
     return res.status(400).json({ code: 400, message: error.message });
@@ -200,7 +237,17 @@ exports.getConsult = async (req, res, next) => {
         },
       ],
     });
+    const formatteConsults = {
+      ...consult.toJSON(),
+      createdAt: moment(consult.createdAt)
+        .tz('Asia/Seoul')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(consult.updatedAt)
+        .tz('Asia/Seoul')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
 
+    return res.status(200).json({ code: 200, formatteConsults });
     return res.status(200).json({ code: 200, message: consult });
   } catch (error) {
     console.error(error);

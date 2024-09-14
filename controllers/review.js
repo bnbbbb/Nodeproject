@@ -4,6 +4,7 @@ const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
 const { ReviewComment } = require('../models/mysql/comment');
+const moment = require('moment-timezone');
 
 // 리뷰 관련 메소드
 exports.createReview = async (req, res, next) => {
@@ -36,7 +37,21 @@ exports.createReview = async (req, res, next) => {
 exports.reviewList = async (req, res, next) => {
   try {
     const reviews = await Review.findAll();
-    return res.status(200).json({ code: 200, reviews });
+
+    // 한국 시간으로 출력
+    const formattedReviews = reviews.map((review) => {
+      return {
+        ...review.toJSON(),
+        createdAt: moment(review.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(review.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formattedReviews });
   } catch (error) {
     console.log(error);
     next(error);
@@ -50,7 +65,21 @@ exports.myReviewList = async (req, res, next) => {
     const reviews = await Review.findAll({
       where: { review_writer: userId },
     });
-    return res.status(200).json({ code: 200, reviews });
+
+    // 한국 시간으로 출력
+    const formattedReviews = reviews.map((review) => {
+      return {
+        ...review.toJSON(),
+        createdAt: moment(review.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(review.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formattedReviews });
   } catch (error) {
     console.error(error);
     // return res
@@ -97,7 +126,19 @@ exports.searchReview = async (req, res, next) => {
         ],
       },
     });
-    return res.status(200).json({ code: 200, reviews });
+    const formattedReviews = reviews.map((review) => {
+      return {
+        ...review.toJSON(),
+        createdAt: moment(review.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(review.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formattedReviews });
   } catch (error) {
     console.error('Error:', error); // 오류 로그
     return res.status(400).json({ code: 400, message: error.message });
@@ -202,7 +243,17 @@ exports.getReview = async (req, res, next) => {
       ],
     });
 
-    return res.status(200).json({ code: 200, message: review });
+    const formattedReview = {
+      ...review.toJSON(),
+      createdAt: moment(review.createdAt)
+        .tz('Asia/Seoul')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(review.updatedAt)
+        .tz('Asia/Seoul')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+
+    return res.status(200).json({ code: 200, message: formattedReview });
   } catch (error) {
     console.log(error);
     next(error);

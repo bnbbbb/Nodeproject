@@ -4,6 +4,7 @@ const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
 const { QnAComment } = require('../models/mysql/comment');
+const moment = require('moment-timezone');
 
 // 리뷰 관련 메소드
 
@@ -37,7 +38,20 @@ exports.createQnA = async (req, res, next) => {
 exports.qnaList = async (req, res, next) => {
   try {
     const qnas = await QnA.findAll();
-    return res.status(200).json({ code: 200, qnas });
+
+    const formatteQnAs = qnas.map((qna) => {
+      return {
+        ...qna.toJSON(),
+        createdAt: moment(qna.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(qna.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formatteQnAs });
   } catch (error) {
     console.log(error);
     // return res.status(500).json({ code: 500, message: error.message });
@@ -52,7 +66,20 @@ exports.myQnAList = async (req, res, next) => {
     const qnas = await QnA.findAll({
       where: { qna_writer: userId },
     });
-    return res.status(200).json({ code: 200, qnas });
+
+    const formatteQnAs = qnas.map((qna) => {
+      return {
+        ...qna.toJSON(),
+        createdAt: moment(qna.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(qna.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formatteQnAs });
   } catch (error) {
     console.error(error);
     // return res
@@ -99,7 +126,20 @@ exports.searchQnA = async (req, res, next) => {
         ],
       },
     });
-    return res.status(200).json({ code: 200, qnas });
+
+    const formatteQnAs = qnas.map((qna) => {
+      return {
+        ...qna.toJSON(),
+        createdAt: moment(qna.createdAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+        updatedAt: moment(qna.updatedAt)
+          .tz('Asia/Seoul')
+          .format('YYYY-MM-DD HH:mm:ss'),
+      };
+    });
+
+    return res.status(200).json({ code: 200, formatteQnAs });
   } catch (error) {
     console.error('Error:', error); // 오류 로그
     return res.status(400).json({ code: 400, message: error.message });
@@ -201,6 +241,18 @@ exports.getQnA = async (req, res, next) => {
         },
       ],
     });
+
+    const formatteQnAs = {
+      ...qna.toJSON(),
+      createdAt: moment(qna.createdAt)
+        .tz('Asia/Seoul')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(qna.updatedAt)
+        .tz('Asia/Seoul')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+
+    return res.status(200).json({ code: 200, formatteQnAs });
 
     return res.status(200).json({ code: 200, message: qna });
   } catch (error) {
