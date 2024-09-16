@@ -174,6 +174,22 @@ exports.editConsult = async (req, res, next) => {
   }
 };
 
+// 삭제
+exports.deleteConsult = async (req, res, next) => {
+  try {
+    const { consultId } = req.params;
+    const userId = req.user.id;
+
+    const consult = await QnA.findByPk(consultId);
+    await verifyPost(consult, userId, '상담');
+
+    await consult.destroy();
+    return res.status(200).json({ message: 'QnA 삭제에 성공하였습니다.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // 상세 페이지
 exports.getConsult = async (req, res, next) => {
   try {

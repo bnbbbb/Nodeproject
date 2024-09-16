@@ -83,8 +83,9 @@ app.use((err, req, res, next) => {
   res.locals.error = process.env.NODE_ENV !== 'production' ? err : {};
   res.status(err.status || 500);
   console.error(err);
-  // res.json({ code: err.status || 500, error: err.message });
-  res.status(500).json({ code: 500, message: '서버 오류가 발생했습니다.' });
+  res
+    .status(err.status | 500)
+    .json({ code: err.status || 500, error: err.message });
 });
 
 app.listen(app.get('port'), () => {

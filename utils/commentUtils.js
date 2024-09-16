@@ -18,27 +18,29 @@ const commentVerify = async (type, commentId, commenterId, categoryId) => {
       CommentModel = ConsultComment;
       break;
     default:
-      return { error: '댓글 type을 찾을 수 없습니다.', status: 400 };
+      const error = '댓글 type을 찾을 수 없습니다.';
+      error.status = 400;
+      throw error;
   }
 
   const comment = await CommentModel.findByPk(commentId);
 
   if (!comment) {
-    return { error: `해당 ${type}의 댓글을 찾지 못했습니다.`, status: 404 };
+    const error = new Error(`해당 ${type}의 댓글을 찾지 못했습니다.`);
+    error.status = 404;
+    throw error;
   }
 
   if (comment.commenter !== commenterId) {
-    return {
-      error: '본인이 작성한 댓글만 수정/삭제할 수 있습니다.',
-      status: 403,
-    };
+    const error = '본인이 작성한 댓글만 수정/삭제할 수 있습니다.';
+    error.status = 403;
+    throw error;
   }
 
   if (comment[`${type}_id`] !== parseInt(categoryId, 10)) {
-    return {
-      error: '댓글이 해당 게시글에 포함되지 않습니다.',
-      status: 403,
-    };
+    const error = '댓글이 해당 게시글에 포함되지 않습니다.';
+    error.status = 403;
+    throw error;
   }
 
   return { CommentModel, comment, error: null };

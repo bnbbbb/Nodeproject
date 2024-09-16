@@ -5,6 +5,7 @@ const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
 const { QnAComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
+const { verifyPost } = require('../utils/postUtils');
 
 // 리뷰 관련 메소드
 
@@ -13,7 +14,7 @@ exports.createQnA = async (req, res, next) => {
     const { title, content } = req.body;
     const qna = await QnA.create({
       //verifyToken으로 userId 전달
-      qna_writer: req.user.id,
+      writer: req.user.id,
       title,
       content,
     });
@@ -64,7 +65,7 @@ exports.myQnAList = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const qnas = await QnA.findAll({
-      where: { qna_writer: userId },
+      where: { writer: userId },
     });
 
     const formatteQnAs = qnas.map((qna) => {
@@ -102,8 +103,8 @@ exports.searchQnA = async (req, res, next) => {
     const qnas = await QnA.findAll({
       include: [
         {
-          model: User, // User 모델을 포함
-          attributes: ['username'], // 사용자 이름만 가져오기
+          model: User,
+          attributes: ['username'],
         },
       ],
       where: {
@@ -151,13 +152,11 @@ exports.editQnA = async (req, res, next) => {
   try {
     const { qnaId } = req.params;
     const updateData = req.body;
+    const userId = req.user.id;
+
     const qna = await QnA.findByPk(qnaId);
-    if (qna.qna_writer !== req.user.id) {
-      return res.status(403).json({
-        code: 403,
-        message: '본인이 작성한 리뷰만 수정할 수 있습니다. ',
-      });
-    }
+    await verifyPost(qna, userId, 'QnA');
+
     const [updatedCount] = await QnA.update(updateData, {
       where: { id: qnaId },
       paranoid: false,
@@ -178,10 +177,27 @@ exports.editQnA = async (req, res, next) => {
   }
 };
 
+// 삭제
+exports.deleteQnA = async (req, res, next) => {
+  try {
+    const { qnaId } = req.params;
+    const userId = req.user.id;
+
+    const qna = await QnA.findByPk(qnaId);
+    await verifyPost(qna, userId, 'QnA');
+
+    await qna.destroy();
+    return res.status(200).json({ message: 'QnA 삭제에 성공하였습니다.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // 상세 페이지
 exports.getQnA = async (req, res, next) => {
   try {
     const { qnaId } = req.params;
+    console.log(qnaId);
 
     let userId = null;
 
@@ -253,8 +269,6 @@ exports.getQnA = async (req, res, next) => {
     };
 
     return res.status(200).json({ code: 200, formatteQnAs });
-
-    return res.status(200).json({ code: 200, message: qna });
   } catch (error) {
     console.log(error);
     next(error);

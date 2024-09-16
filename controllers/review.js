@@ -179,6 +179,22 @@ exports.editReview = async (req, res, next) => {
   }
 };
 
+// 삭제
+exports.deleteReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const userId = req.user.id;
+
+    const review = await QnA.findByPk(reviewId);
+    await verifyPost(review, userId, '리뷰');
+
+    await review.destroy();
+    return res.status(200).json({ message: 'QnA 삭제에 성공하였습니다.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // 상세 페이지
 exports.getReview = async (req, res, next) => {
   try {

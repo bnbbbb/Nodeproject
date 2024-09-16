@@ -12,6 +12,7 @@ const {
   myQnAList,
   searchQnA,
   getQnA,
+  deleteQnA,
 } = require('../controllers/qna');
 const router = express.Router();
 
@@ -26,5 +27,7 @@ router.get('/api/qna/mine', verifyToken, myQnAList);
 router.get('/api/qna/search', searchQnA);
 
 router.get('/api/qna/:qnaId', notUser, getQnA);
+
+router.delete('/api/qna/delete/:qnaId', verifyToken, deleteQnA);
 
 module.exports = router;

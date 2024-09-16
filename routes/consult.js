@@ -13,6 +13,7 @@ const {
   myConsultList,
   searchConsult,
   getConsult,
+  deleteConsult,
 } = require('../controllers/consult');
 const router = express.Router();
 
@@ -27,5 +28,7 @@ router.get('/api/consult/mine', verifyToken, myConsultList);
 router.get('/api/consult/search', searchConsult);
 
 router.get('/api/consult/:consultId', notUser, getConsult);
+
+router.delete('/api/qna/delete/:consultId', verifyToken, deleteConsult);
 
 module.exports = router;
