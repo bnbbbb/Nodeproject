@@ -27,8 +27,8 @@ router.get('/api/review/mine', verifyToken, myReviewList);
 
 router.get('/api/review/search', searchReview);
 
-router.delete('/api/qna/delete/:reviewId', verifyToken, deleteReview);
-
 router.get('/api/review/:reviewId', notUser, getReview);
+
+router.delete('/api/review/delete/:reviewId', verifyToken, deleteReview);
 
 module.exports = router;

@@ -5,17 +5,22 @@ const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
 const { ConsultComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
+const { sequelize } = require('../models/mysql');
+const { verifyPost } = require('../utils/postUtils');
 
 exports.createConsult = async (req, res, next) => {
   try {
     const { title, content } = req.body;
-    const consult = await Consult.create({
-      //verifyToken으로 userId 전달
-      consult_writer: req.user.id,
-      title,
-      content,
-    });
-    return res.status(200).json({ code: 200, consult });
+    const userId = req.user.id;
+
+    // ORM
+    // const consult = await Consult.create({
+    //   //verifyToken으로 userId 전달
+    //   writer: req.user.id,
+    //   title,
+    //   content,
+    // });
+    // return res.status(200).json({ code: 200, consult });
 
     // 임시 SQL 적용 코드 - 작동x
     // const sql =
@@ -26,20 +31,54 @@ exports.createConsult = async (req, res, next) => {
     //   code: 200,
     //   consult: { id: consultId, consult_writer: req.user.id, title, content },
     // });
+    // Query
+    const query = `
+      INSERT INTO consults (writer, title, content, createdAt, updatedAt) 
+      VALUES (?, ?, ?, NOW(), NOW())
+    `;
+
+    const consults = await sequelize.query(query, {
+      replacements: [userId, title, content], // 세 개의 값을 전달
+      type: sequelize.QueryTypes.INSERT,
+    });
+    return res
+      .status(201)
+      .json({ code: 201, message: 'consult가 성공적으로 생성되었습니다.' });
   } catch (error) {
     console.error(error);
     next(error);
   }
 };
 
-// 전체 리뷰 보기
+// 전체 상담 보기
 exports.consultList = async (req, res, next) => {
   try {
-    const consults = await Consult.findAll();
+    // const consults = await Consult.findAll();
+
+    // const formatteConsults = consults.map((consult) => {
+    //   return {
+    //     ...consult.toJSON(),
+    //     createdAt: moment(consult.createdAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //     updatedAt: moment(consult.updatedAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //   };
+    // });
+    // SQL Query
+    const query = `
+      SELECT id, title, content, hits, createdAt, updatedAt, deletedAt, writer
+      FROM consults
+      WHERE deletedAt IS NULL
+    `;
+    const consults = await sequelize.query(query, {
+      type: sequelize.QueryTypes.SELECT,
+    });
 
     const formatteConsults = consults.map((consult) => {
       return {
-        ...consult.toJSON(),
+        ...consult,
         createdAt: moment(consult.createdAt)
           .tz('Asia/Seoul')
           .format('YYYY-MM-DD HH:mm:ss'),
@@ -57,16 +96,43 @@ exports.consultList = async (req, res, next) => {
   }
 };
 
-// 내가 쓴 리뷰 보기
+// 내가 쓴 상담 보기
 exports.myConsultList = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const consults = await Consult.findAll({
-      where: { consult_writer: userId },
+
+    // ORM
+    // const userId = req.user.id;
+    // const consults = await Consult.findAll({
+    //   where: { consult_writer: userId },
+    // });
+    // const formatteConsults = consults.map((consult) => {
+    //   return {
+    //     ...consult.toJSON(),
+    //     createdAt: moment(consult.createdAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //     updatedAt: moment(consult.updatedAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //   };
+    // });
+
+    // Query
+    const query = `
+      SELECT id, title, content, hits, createdAt, updatedAt, deletedAt, writer
+      FROM consults
+      WHERE deletedAt IS NULL AND writer = ?
+    `;
+
+    const consults = await sequelize.query(query, {
+      // bind: [userId],
+      replacements: [userId],
+      type: sequelize.QueryTypes.SELECT,
     });
     const formatteConsults = consults.map((consult) => {
       return {
-        ...consult.toJSON(),
+        ...consult,
         createdAt: moment(consult.createdAt)
           .tz('Asia/Seoul')
           .format('YYYY-MM-DD HH:mm:ss'),
@@ -86,46 +152,74 @@ exports.myConsultList = async (req, res, next) => {
   }
 };
 
-// 검색한 리뷰 보기
+// 검색한 상담 보기
 exports.searchConsult = async (req, res, next) => {
   try {
-    const query = req.query.query;
-    console.log(query);
-    if (!query) {
-      return res
-        .status(400)
-        .json({ code: 400, message: '검색어가 필요합니다.' });
+    const searchQuery = req.query.query;
+    if (!searchQuery) {
+      const error = new Error('검색어가 필요합니다.');
+      error.status = 400;
+
+      throw error;
     }
-    const consults = await Consult.findAll({
-      include: [
-        {
-          model: User, // User 모델을 포함
-          attributes: ['username'], // 사용자 이름만 가져오기
-        },
-      ],
-      where: {
-        [Op.or]: [
-          {
-            title: {
-              [Op.like]: `%${query}%`,
-            },
-          },
-          {
-            content: {
-              [Op.like]: `%${query}%`,
-            },
-          },
-          {
-            '$User.username$': {
-              [Op.like]: `%${query}%`,
-            },
-          },
-        ],
-      },
+
+    // ORM
+    // const consults = await Consult.findAll({
+    //   include: [
+    //     {
+    //       model: User, // User 모델을 포함
+    //       attributes: ['username'], // 사용자 이름만 가져오기
+    //     },
+    //   ],
+    //   where: {
+    //     [Op.or]: [
+    //       {
+    //         title: {
+    //           [Op.like]: `%${query}%`,
+    //         },
+    //       },
+    //       {
+    //         content: {
+    //           [Op.like]: `%${query}%`,
+    //         },
+    //       },
+    //       {
+    //         '$User.username$': {
+    //           [Op.like]: `%${query}%`,
+    //         },
+    //       },
+    //     ],
+    //   },
+    // });
+    // const formatteConsults = consults.map((consult) => {
+    //   return {
+    //     ...consult.toJSON(),
+    //     createdAt: moment(consult.createdAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //     updatedAt: moment(consult.updatedAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //   };
+    // });
+
+    // Query
+
+    const query = `select q.* from consults as q
+    join users as u on q.writer = u.id
+    where q.title like :query
+    or q.content like :query
+    or u.username like :query
+    `;
+    const queryParam = `%${searchQuery}%`;
+    const consults = await sequelize.query(query, {
+      replacements: { query: queryParam },
+      type: sequelize.QueryTypes.SELECT,
     });
+
     const formatteConsults = consults.map((consult) => {
       return {
-        ...consult.toJSON(),
+        ...consult,
         createdAt: moment(consult.createdAt)
           .tz('Asia/Seoul')
           .format('YYYY-MM-DD HH:mm:ss'),
@@ -142,21 +236,51 @@ exports.searchConsult = async (req, res, next) => {
   }
 };
 
-// 리뷰 수정
+// 상담 수정
 exports.editConsult = async (req, res, next) => {
   try {
     const { consultId } = req.params;
     const updateData = req.body;
-    const consult = await Consult.findByPk(consultId);
-    if (consult.consult_writer !== req.user.id) {
-      return res.status(403).json({
-        code: 403,
-        message: '본인이 작성한 리뷰만 수정할 수 있습니다. ',
-      });
-    }
-    const [updatedCount] = await Consult.update(updateData, {
-      where: { id: consultId },
-      paranoid: false,
+    const userId = req.user.id;
+
+    // ORM
+    // const consult = await Consult.findByPk(consultId);
+    // // await verifyPost(consult, userId, 'Consult');
+    // const [updatedCount] = await Consult.update(updateData, {
+    //   where: { id: consultId },
+    //   paranoid: false,
+    // });
+
+    // Query
+    const findQuery = `
+    select *
+    from consults
+    where id = :consultId`;
+    const [consult] = await sequelize.query(findQuery, {
+      replacements: { consultId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+    console.log(consult);
+
+    await verifyPost(consult, userId, '상담');
+    const title = updateData.title || consult.title;
+    const content = updateData.content || consult.content;
+
+    const updateQuery = `
+      UPDATE consults
+      SET title = :title,
+        content = :content,
+        updatedAt = NOW()
+      WHERE id = :consultId
+    `;
+
+    const [updatedCount] = await sequelize.query(updateQuery, {
+      replacements: {
+        title,
+        content,
+        consultId,
+      },
+      type: sequelize.QueryTypes.UPDATE,
     });
 
     if (updatedCount === 0) {
@@ -180,11 +304,32 @@ exports.deleteConsult = async (req, res, next) => {
     const { consultId } = req.params;
     const userId = req.user.id;
 
-    const consult = await QnA.findByPk(consultId);
-    await verifyPost(consult, userId, '상담');
+    // ORM
+    // const consult = await consult.findByPk(consultId);
+    // await verifyPost(consult, userId, '상담');
+    // await consult.destroy();
 
-    await consult.destroy();
-    return res.status(200).json({ message: 'QnA 삭제에 성공하였습니다.' });
+    // Query
+    const findQuery = `
+    select *
+    from consults
+    where id = :consultId`;
+    const [consult] = await sequelize.query(findQuery, {
+      replacements: { consultId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    await verifyPost(consult, userId, 'consult');
+
+    const deleteQuery = `
+    delete from consults where id = :consultId`;
+
+    await sequelize.query(deleteQuery, {
+      replacements: { consultId },
+      type: sequelize.QueryTypes.DELETE,
+    });
+
+    return res.status(200).json({ message: 'consult 삭제에 성공하였습니다.' });
   } catch (error) {
     next(error);
   }
@@ -253,6 +398,11 @@ exports.getConsult = async (req, res, next) => {
         },
       ],
     });
+    if (!consult) {
+      const error = new Error('해당 상담내역이 존재하지 않습니다.');
+      error.status = 401;
+      throw error;
+    }
     const formatteConsults = {
       ...consult.toJSON(),
       createdAt: moment(consult.createdAt)
@@ -264,11 +414,8 @@ exports.getConsult = async (req, res, next) => {
     };
 
     return res.status(200).json({ code: 200, formatteConsults });
-    return res.status(200).json({ code: 200, message: consult });
   } catch (error) {
     console.error(error);
-    return res
-      .status(500)
-      .json({ code: 500, message: '서버 오류가 발생했습니다.' });
+    next(error);
   }
 };

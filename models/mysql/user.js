@@ -72,17 +72,16 @@ class User extends Sequelize.Model {
     );
   }
   static associate(db) {
-    //TODO User 외래키 설정
     db.User.hasMany(db.Review, {
-      foreignKey: 'review_writer',
+      foreignKey: 'writer',
       sourceKey: 'id',
     });
     db.User.hasMany(db.Consult, {
-      foreignKey: 'consult_writer',
+      foreignKey: 'writer',
       sourceKey: 'id',
     });
     db.User.hasMany(db.QnA, {
-      foreignKey: 'qna_writer',
+      foreignKey: 'writer',
       sourceKey: 'id',
     });
     db.User.hasMany(db.Presentation, {

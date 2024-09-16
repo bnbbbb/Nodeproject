@@ -1,32 +1,41 @@
 const { Op } = require('sequelize');
-const { Review, QnA, Consult } = require('../models/mysql/category');
+const { Review, review, Consult } = require('../models/mysql/category');
 const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
 const { ReviewComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
+const { verifyPost } = require('../utils/postUtils');
+const { sequelize } = require('../models/mysql');
 
 // 리뷰 관련 메소드
 exports.createReview = async (req, res, next) => {
   try {
     const { title, content } = req.body;
-    const review = await Review.create({
-      //verifyToken으로 userId 전달
-      review_writer: req.user.id,
-      title,
-      content,
-    });
-    return res.status(200).json({ code: 200, review });
+    const userId = req.user.id;
 
-    // 임시 SQL 적용 코드 - 작동x
-    // const sql =
-    //   'INSERT INTO reviews (review_writer, title, content) VALUES (?, ?, ?)';
-    // const [result] = await pool.query(sql, [req.user.id, title, content]);
-    // const reviewId = result.insertId;
-    // return res.status(200).json({
-    //   code: 200,
-    //   review: { id: reviewId, review_writer: req.user.id, title, content },
+    // ORM
+    // const review = await Review.create({
+    //   //verifyToken으로 userId 전달
+    //   review_writer: req.user.id,
+    //   title,
+    //   content,
     // });
+    // return res.status(200).json({ code: 200, review });
+
+    // Query
+    const query = `
+      INSERT INTO reviews (writer, title, content, createdAt, updatedAt) 
+      VALUES (?, ?, ?, NOW(), NOW())
+    `;
+    const reviews = await sequelize.query(query, {
+      replacements: [userId, title, content], // 세 개의 값을 전달
+      type: sequelize.QueryTypes.INSERT,
+    });
+
+    return res
+      .status(201)
+      .json({ code: 201, message: '리뷰가 성공적으로 생성되었습니다.' });
   } catch (error) {
     console.error(error);
     next(error);
@@ -36,12 +45,34 @@ exports.createReview = async (req, res, next) => {
 // 전체 리뷰 보기
 exports.reviewList = async (req, res, next) => {
   try {
-    const reviews = await Review.findAll();
+    // const reviews = await Review.findAll();
 
-    // 한국 시간으로 출력
+    // ORM
+    // const formattedReviews = reviews.map((review) => {
+    //   return {
+    //     ...review.toJSON(),
+    //     createdAt: moment(review.createdAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //     updatedAt: moment(review.updatedAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //   };
+    // });
+
+    // SQL Query
+    const reviewQuery = `
+      SELECT id, title, content, hits, createdAt, updatedAt, deletedAt, writer
+      FROM reviews
+      WHERE deletedAt IS NULL
+    `;
+    const reviews = await sequelize.query(reviewQuery, {
+      type: sequelize.QueryTypes.SELECT,
+    });
+
     const formattedReviews = reviews.map((review) => {
       return {
-        ...review.toJSON(),
+        ...review,
         createdAt: moment(review.createdAt)
           .tz('Asia/Seoul')
           .format('YYYY-MM-DD HH:mm:ss'),
@@ -62,14 +93,38 @@ exports.reviewList = async (req, res, next) => {
 exports.myReviewList = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const reviews = await Review.findAll({
-      where: { review_writer: userId },
-    });
+    // const reviews = await Review.findAll({
+    //   where: { review_writer: userId },
+    // });
 
-    // 한국 시간으로 출력
+    // // 한국 시간으로 출력
+    // const formattedReviews = reviews.map((review) => {
+    //   return {
+    //     ...review.toJSON(),
+    //     createdAt: moment(review.createdAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //     updatedAt: moment(review.updatedAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //   };
+    // });
+
+    // Query
+    const query = `
+      SELECT id, title, content, hits, createdAt, updatedAt, deletedAt, writer
+      FROM reviews
+      WHERE deletedAt IS NULL AND writer = ?
+    `;
+
+    const reviews = await sequelize.query(query, {
+      // bind: [userId],
+      replacements: [userId],
+      type: sequelize.QueryTypes.SELECT,
+    });
     const formattedReviews = reviews.map((review) => {
       return {
-        ...review.toJSON(),
+        ...review,
         createdAt: moment(review.createdAt)
           .tz('Asia/Seoul')
           .format('YYYY-MM-DD HH:mm:ss'),
@@ -82,9 +137,6 @@ exports.myReviewList = async (req, res, next) => {
     return res.status(200).json({ code: 200, formattedReviews });
   } catch (error) {
     console.error(error);
-    // return res
-    //   .status(500)
-    //   .json({ code: 500, message: '서버 오류가 발생했습니다.' });
     next(error);
   }
 };
@@ -92,43 +144,70 @@ exports.myReviewList = async (req, res, next) => {
 // 검색한 리뷰 보기
 exports.searchReview = async (req, res, next) => {
   try {
-    const query = req.query.query;
-    console.log(query);
-    if (!query) {
-      return res
-        .status(400)
-        .json({ code: 400, message: '검색어가 필요합니다.' });
+    const searchQuery = req.query.query;
+    if (!searchQuery) {
+      const error = new Error('검색어가 필요합니다.');
+      error.status = 400;
+      throw error;
     }
-    const reviews = await Review.findAll({
-      include: [
-        {
-          model: User, // User 모델을 포함
-          attributes: ['username'], // 사용자 이름만 가져오기
-        },
-      ],
-      where: {
-        [Op.or]: [
-          {
-            title: {
-              [Op.like]: `%${query}%`,
-            },
-          },
-          {
-            content: {
-              [Op.like]: `%${query}%`,
-            },
-          },
-          {
-            '$User.username$': {
-              [Op.like]: `%${query}%`,
-            },
-          },
-        ],
-      },
+    // ORM
+
+    // const reviews = await Review.findAll({
+    //   include: [
+    //     {
+    //       model: User, // User 모델을 포함
+    //       attributes: ['username'], // 사용자 이름만 가져오기
+    //     },
+    //   ],
+    //   where: {
+    //     [Op.or]: [
+    //       {
+    //         title: {
+    //           [Op.like]: `%${query}%`,
+    //         },
+    //       },
+    //       {
+    //         content: {
+    //           [Op.like]: `%${query}%`,
+    //         },
+    //       },
+    //       {
+    //         '$User.username$': {
+    //           [Op.like]: `%${query}%`,
+    //         },
+    //       },
+    //     ],
+    //   },
+    // });
+    // const formattedReviews = reviews.map((review) => {
+    //   return {
+    //     ...review.toJSON(),
+    //     createdAt: moment(review.createdAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //     updatedAt: moment(review.updatedAt)
+    //       .tz('Asia/Seoul')
+    //       .format('YYYY-MM-DD HH:mm:ss'),
+    //   };
+    // });
+
+    // Query
+
+    const query = `select r.* from reviews as r
+    join users as u on r.writer = u.id
+    where r.title like :query
+    or r.content like :query
+    or u.username like :query
+    `;
+    const queryParam = `%${searchQuery}%`;
+    const reviews = await sequelize.query(query, {
+      replacements: { query: queryParam },
+      type: sequelize.QueryTypes.SELECT,
     });
+
     const formattedReviews = reviews.map((review) => {
       return {
-        ...review.toJSON(),
+        ...review,
         createdAt: moment(review.createdAt)
           .tz('Asia/Seoul')
           .format('YYYY-MM-DD HH:mm:ss'),
@@ -150,18 +229,45 @@ exports.editReview = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
     const updateData = req.body;
+    const userId = req.user.id;
 
-    const review = await Review.findByPk(reviewId);
-    if (review.review_writer !== req.user.id) {
-      return res.status(403).json({
-        code: 403,
-        message: '본인이 작성한 리뷰만 수정할 수 있습니다. ',
-      });
-    }
+    // ORM
+    // const review = await Review.findByPk(reviewId);
+    // await verifyPost(review, userId, '리뷰');
+    // const [updatedCount] = await Review.update(updateData, {
+    //   where: { id: reviewId },
+    //   paranoid: false,
+    // });
 
-    const [updatedCount] = await Review.update(updateData, {
-      where: { id: reviewId },
-      paranoid: false,
+    // Query
+    const findQuery = `
+    select *
+    from reviews
+    where id = :reviewId`;
+    const [review] = await sequelize.query(findQuery, {
+      replacements: { reviewId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    await verifyPost(review, userId, '리뷰');
+    const title = updateData.title || review.title;
+    const content = updateData.content || review.content;
+
+    const updateQuery = `
+      UPDATE reviews
+      SET title = :title,
+        content = :content,
+        updatedAt = NOW()
+      WHERE id = :reviewId
+    `;
+
+    const [updatedCount] = await sequelize.query(updateQuery, {
+      replacements: {
+        title,
+        content,
+        reviewId,
+      },
+      type: sequelize.QueryTypes.UPDATE,
     });
 
     if (updatedCount === 0) {
@@ -185,11 +291,33 @@ exports.deleteReview = async (req, res, next) => {
     const { reviewId } = req.params;
     const userId = req.user.id;
 
-    const review = await QnA.findByPk(reviewId);
-    await verifyPost(review, userId, '리뷰');
+    // ORM
+    // const review = await review.findByPk(reviewId);
+    // await verifyPost(review, userId, '리뷰');
+    // await review.destroy();
 
-    await review.destroy();
-    return res.status(200).json({ message: 'QnA 삭제에 성공하였습니다.' });
+    // Query
+    const findQuery = `
+    select *
+    from reviews
+    where id = :reviewId`;
+    const [review] = await sequelize.query(findQuery, {
+      replacements: { reviewId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+    console.log(review);
+
+    await verifyPost(review, userId, 'review');
+
+    const deleteQuery = `
+    delete from reviews where id = :reviewId`;
+
+    await sequelize.query(deleteQuery, {
+      replacements: { reviewId },
+      type: sequelize.QueryTypes.DELETE,
+    });
+
+    return res.status(200).json({ message: '리뷰 삭제에 성공하였습니다.' });
   } catch (error) {
     next(error);
   }

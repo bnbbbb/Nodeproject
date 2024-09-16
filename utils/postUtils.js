@@ -1,4 +1,7 @@
 exports.verifyPost = async (post, userId, type) => {
+  console.log(post.writer, userId);
+  console.log(type);
+
   if (!post) {
     const error = new Error(`해당 ${type}을/를 찾지 못하였습니다.`);
     error.status = 404;
