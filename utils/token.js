@@ -29,7 +29,7 @@ const generateRefreshToken = async (userId) => {
     });
     return refToken;
   } catch (error) {
-    console.error('Failed to generate and store refresh token:', error);
+    console.error('Refresh token 생성 및 저장 실패:', error);
     throw error;
   }
 };
@@ -63,40 +63,64 @@ const deleteRefreshToken = async (refreshToken, accessToken) => {
   }
 };
 
-// TODO accessToken 재발급
+// refreshToken을 가져오는 함수
+const getRefreshToken = (req) => {
+  const refreshToken = req.cookies.refreshtoken; // 쿠키에서 가져오기
+  // const refreshToken = req.body.refreshToken; // body에서 가져오기
+  if (!refreshToken) {
+    const error = new Error('RefreshToken 이 필요합니다.');
+    error.status = 400;
+    throw error;
+  }
+  return refreshToken;
+};
+
+// refreshToken을 검증하는 함수
+const validateRefreshToken = async (refreshToken) => {
+  const existingRefToken = await refreshTokenSchema.findOne({
+    token: refreshToken,
+  });
+  if (!existingRefToken) {
+    const error = new Error('refresh token이 유효하지 않습니다.');
+    error.status = 401;
+    throw error;
+  }
+  return existingRefToken.userId;
+};
+
+// 사용자 정보를 조회하는 함수
+const findUserById = async (userId) => {
+  const user = await User.findOne({ where: { id: userId } });
+  if (!user) {
+    const error = new Error('사용자를 찾을 수 없습니다.');
+    error.status = 404;
+    throw error;
+  }
+  return user;
+};
+
+// 새로운 access token을 생성하는 함수
+const createNewAccessToken = (user) => {
+  const payload = { id: user.id, email: user.email, role: user.role };
+  return generateAccessToken(payload);
+};
+
+// 응답을 반환하는 함수
+const sendAccessTokenResponse = (res, token) => {
+  return res.status(200).json({
+    code: 200,
+    message: token,
+  });
+};
+
+// 리팩토링된 refreshAccessToken 함수
 const refreshAccessToken = async (req, res, next) => {
   try {
-    // body값으로
-    // const refreshToken = req.body.refreshToken;
-    // cookies값으로
-    const refreshToken = req.cookies.refreshtoken;
-    console.log(req.cookies);
-    if (!refreshToken) {
-      return res.status(400).json({
-        code: 400,
-        message: 'RefreshToken 이 필요합니다.',
-      });
-    }
-
-    const existingRefToken = await refreshTokenSchema.findOne({
-      token: refreshToken,
-    });
-    const userId = existingRefToken.userId;
-    if (!existingRefToken) {
-      return res.status(401).json({
-        code: 401,
-        message: 'refresh token이 유효하지 않습니다.',
-      });
-    }
-    const user = await User.findOne({ where: { id: userId } });
-    const useremail = user.email;
-    const payload = { id: userId, email: useremail };
-    const newAccessToken = generateAccessToken(payload);
-
-    return res.status(200).json({
-      code: 200,
-      message: newAccessToken,
-    });
+    const refreshToken = getRefreshToken(req);
+    const userId = await validateRefreshToken(refreshToken);
+    const user = await findUserById(userId);
+    const newAccessToken = createNewAccessToken(user);
+    sendAccessTokenResponse(res, newAccessToken);
   } catch (error) {
     console.error(error);
     next(error);

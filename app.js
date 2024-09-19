@@ -82,7 +82,7 @@ app.use((err, req, res, next) => {
   res.locals.message = err.message;
   res.locals.error = process.env.NODE_ENV !== 'production' ? err : {};
   res.status(err.status || 500);
-  console.error(err);
+  console.error('err', err);
   res
     .status(err.status | 500)
     .json({ code: err.status || 500, error: err.message });

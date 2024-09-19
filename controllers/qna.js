@@ -309,7 +309,6 @@ exports.deleteQnA = async (req, res, next) => {
       replacements: { qnaId },
       type: sequelize.QueryTypes.SELECT,
     });
-    console.log(qna);
 
     await verifyPost(qna, userId, 'QnA');
 

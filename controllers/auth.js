@@ -67,7 +67,7 @@ const login = async (req, res, next) => {
     }
     try {
       // JWT 토큰 생성
-      const payload = { id: user.id, email: user.email };
+      const payload = { id: user.id, email: user.email, role: user.role };
       const accessToken = generateAccessToken(payload);
       const refreshToken = await generateRefreshToken(user.id);
 

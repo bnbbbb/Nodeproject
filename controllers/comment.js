@@ -4,36 +4,48 @@ const {
   ConsultComment,
   QnAComment,
 } = require('../models/mysql/comment');
-const commentVerify = require('../utils/commentUtils');
+const {
+  commentVerify,
+  getCommentModel,
+  getPost,
+  verifyCommenter,
+} = require('../utils/commentUtils');
+const { sequelize } = require('../models/mysql');
+const { replaceOne } = require('../models/mongo/blacklist');
 
 const createComment = async (req, res, next) => {
   try {
     const { type, postId } = req.params;
     const { comment } = req.body;
     const commenterId = req.user.id;
-    let CommentModel;
+    await getPost(type, postId);
 
-    switch (type) {
-      case 'review':
-        CommentModel = ReviewComment;
-        break;
-      case 'qna':
-        CommentModel = QnAComment;
-        break;
-      case 'consult':
-        CommentModel = ConsultComment;
-        break;
-      default:
-        return res
-          .status(400)
-          .json({ code: 400, message: '댓글 type을 찾을 수 없습니다.' });
-    }
-    const newComment = await CommentModel.create({
-      comment,
-      [`${type}_id`]: postId,
-      commenter: commenterId,
+    // ORM
+    // const CommentModel = getCommentModel(type);
+
+    // const newComment = await CommentModel.create({
+    //   comment,
+    //   [`${type}_id`]: postId,
+    //   commenter: commenterId,
+    // });
+
+    // Query
+    const commentQuery = `insert into ${type}_comments 
+      (comment, ${type}_id, commenter, createdAt, updatedAt)
+      values (:comment, :postId, :commenterId, NOW(), NOW())`;
+
+    const newComment = await sequelize.query(commentQuery, {
+      replacements: {
+        comment,
+        postId,
+        commenterId,
+      },
+      type: sequelize.QueryTypes.INSERT,
     });
-    res.status(200).json({ code: 200, message: newComment });
+
+    res
+      .status(200)
+      .json({ code: 200, message: '댓글이 성공적으로 생성되었습니다.' });
   } catch (error) {
     console.error(error);
     next(error);
@@ -46,26 +58,39 @@ const editComment = async (req, res, next) => {
     const updatedData = req.body;
     const commenterId = req.user.id;
 
-    const { CommentModel, comment, error, status } = await commentVerify(
+    await getPost(type, categoryId);
+
+    const { CommentModel, comment } = await commentVerify(
       type,
       commentId,
       commenterId,
       categoryId
     );
-    if (error) {
-      return res.status(status).json({ code: status, message: error });
-    }
 
-    const [updatedCount] = await CommentModel.update(updatedData, {
-      where: { id: commentId },
-      paranoid: false,
+    // ORM
+    // const [updatedCount] = await CommentModel.update(updatedData, {
+    //   where: { id: commentId },
+    //   paranoid: false,
+    // });
+
+    // Query
+    const updateQuery = `
+      update ${type}_comments
+      set comment = :comment, updatedAt = NOW()
+      where id = :commentId
+    `;
+
+    const updatedCount = await sequelize.query(updateQuery, {
+      replacements: {
+        comment: updatedData.comment, // 업데이트할 데이터
+        commentId,
+      },
+      type: sequelize.QueryTypes.UPDATE,
     });
 
     if (updatedCount === 0) {
-      return res.status(500).json({
-        code: 500,
-        message: '댓글 수정 중 오류가 발생했습니다.',
-      });
+      const error = new Error('댓글 수정 중 오류가 발생했습니다.');
+      throw error;
     }
     const updatedComment = await CommentModel.findByPk(commentId);
 
@@ -80,16 +105,35 @@ const deleteComment = async (req, res, next) => {
   try {
     const { type, categoryId, commentId } = req.params;
     const commenterId = req.user.id;
-    const { CommentModel, comment, error, status } = await commentVerify(
+    const { CommentModel, comment } = await commentVerify(
       type,
       commentId,
       commenterId,
       categoryId
     );
-    if (error) {
-      return res.status(status).json({ code: status, message: error });
-    }
-    await CommentModel.destroy({ where: { id: commentId } });
+
+    // ORM
+    // await CommentModel.destroy({ where: { id: commentId } });
+
+    // Query
+    const findQuery = `
+    select *
+    from ${type}_comments
+    where id = :commentId and ${type}_id = :categoryId`;
+
+    const [findComment] = await sequelize.query(findQuery, {
+      replacements: { commentId, categoryId },
+      type: sequelize.QueryTypes.SELECT,
+    });
+    verifyCommenter(findComment, commenterId);
+
+    const deleteQuery = `delete from ${type}_comments where id = :commentId`;
+
+    await sequelize.query(deleteQuery, {
+      replacements: { commentId },
+      type: sequelize.QueryTypes.DELETE,
+    });
+
     return res
       .status(200)
       .json({ code: 200, message: '댓글을 삭제하였습니다.' });
