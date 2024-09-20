@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const User = require('../models/mysql/user');
+const { sequelize } = require('../models/mysql');
 
 module.exports = () => {
   passport.use(
@@ -16,7 +17,16 @@ module.exports = () => {
       },
       async (email, password, done) => {
         try {
-          const user = await User.findOne({ where: { email } });
+          // const user = await User.findOne({ where: { email } });
+
+          const userQuery = `select * from users where email = :email`;
+          const [user] = await sequelize.query(userQuery, {
+            replacements: {
+              email,
+            },
+            type: sequelize.QueryTypes.SELECT,
+          });
+
           if (user) {
             const isMatch = await bcrypt.compare(password, user.password);
             if (isMatch) {
@@ -37,27 +47,5 @@ module.exports = () => {
       }
     )
   );
-
-  // JWT 전략 (액세스 토큰 검증)
-  passport.use(
-    new JwtStrategy(
-      {
-        jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-        secretOrKey: process.env.SECRET_KEY,
-      },
-      async (jwtPayload, done) => {
-        try {
-          console.log(process.env.SECRET_KEY);
-          const user = await User.findByPk(jwtPayload.id);
-          if (user) {
-            return done(null, user);
-          } else {
-            return done(null, false);
-          }
-        } catch (error) {
-          return done(error, false);
-        }
-      }
-    )
-  );
+  //
 };

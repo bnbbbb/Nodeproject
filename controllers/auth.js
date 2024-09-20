@@ -2,20 +2,22 @@ const bcrypt = require('bcrypt');
 const User = require('../models/mysql/user');
 const passport = require('passport');
 const dotenv = require('dotenv');
+const moment = require('moment-timezone');
 
 const {
   generateAccessToken,
   generateRefreshToken,
   deleteRefreshToken,
 } = require('../utils/token');
+const { sequelize } = require('../models/mysql');
 
 dotenv.config();
 
 const join = async (req, res, next) => {
   const {
-    email,
+    email: useremail,
     username,
-    password,
+    password: userpassword,
     logo,
     contact,
     companyName,
@@ -28,32 +30,74 @@ const join = async (req, res, next) => {
   } = req.body;
 
   try {
-    const exUser = await User.findOne({ where: { email } });
+    // const exUser = await User.findOne({ where: { email } });
+    // if (exUser) {
+    //   const error = new Error('현재 사용중인 이메일 입니다.');
+    //   error.status = 400
+    //   throw error
+    // }
+    const passwordHash = await bcrypt.hash(userpassword, 12);
+
+    // const newUser = await User.create({
+    //   email: useremail,
+    //   username,
+    //   password: passwordHash,
+    //   logo,
+    //   contact,
+    //   companyName,
+    //   business,
+    //   region,
+    //   startDate,
+    //   isStore,
+    //   storeCount,
+    //   sales,
+    // });
+
+    const userQuery = `select * from users where email = :useremail`;
+
+    const exUser = await sequelize.query(userQuery, {
+      replacements: {
+        useremail,
+      },
+      type: sequelize.QueryTypes.SELECT,
+    });
+
     if (exUser) {
-      return res
-        .status(400)
-        .json({ code: 404, error: '현재 사용중인 이메일 입니다.' });
+      const error = new Error('현재 사용중인 이메일 입니다.');
+      error.status = 400;
+      throw error;
     }
-    const hash = await bcrypt.hash(password, 12);
-    const newUser = await User.create({
-      email,
+
+    const formattedStartDate = moment(startDate).format('YYYY-MM-DD HH:mm:ss');
+
+    const createQuery = `INSERT INTO Users (email, username, password, logo, contact, companyName, 
+          business, region, startDate, isStore, storeCount, sales, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW());`;
+
+    const replacements = [
+      useremail,
       username,
-      password: hash,
+      passwordHash,
       logo,
       contact,
       companyName,
       business,
       region,
-      startDate,
+      formattedStartDate,
       isStore,
       storeCount,
       sales,
+    ];
+
+    await sequelize.query(createQuery, {
+      replacements,
+      type: sequelize.QueryTypes.INSERT,
     });
-    return res.status(200).json({ code: 200, user: newUser });
+
+    return res.status(200).json({ code: 200, message: '회원가입 성공' });
   } catch (error) {
     console.error(error);
-    // next(error);
-    return res.status(500).json(error);
+    next(error);
   }
 };
 
@@ -63,7 +107,9 @@ const login = async (req, res, next) => {
       return next(err);
     }
     if (!user) {
-      return res.status(401).json({ code: 401, message: info.message });
+      const error = new Error(info.message);
+      error.status = 401;
+      throw error;
     }
     try {
       // JWT 토큰 생성
@@ -72,7 +118,10 @@ const login = async (req, res, next) => {
       const refreshToken = await generateRefreshToken(user.id);
 
       // 유저 정보 넘겨줄 때 비밀번호 제외
-      const userWithoutPassword = { ...user.toJSON() };
+      // ORM
+      // const userWithoutPassword = { ...user.toJSON() };
+      // Query
+      const userWithoutPassword = { ...user };
       delete userWithoutPassword.password;
 
       res.cookie('refreshtoken', refreshToken, {

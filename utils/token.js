@@ -8,6 +8,7 @@ dotenv.config();
 
 const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.SECRET_KEY, {
+    algorithm: 'HS256',
     expiresIn: process.env.ACCESSTOKEN_EXPIRESIN,
   });
 };
@@ -113,7 +114,6 @@ const sendAccessTokenResponse = (res, token) => {
   });
 };
 
-// 리팩토링된 refreshAccessToken 함수
 const refreshAccessToken = async (req, res, next) => {
   try {
     const refreshToken = getRefreshToken(req);

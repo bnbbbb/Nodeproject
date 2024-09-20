@@ -18,7 +18,8 @@ const {
 const { refreshAccessToken } = require('../utils/token');
 const router = express.Router();
 
-router.post('/api/auth/join', isNotLoggedIn, join);
+// router.post('/api/auth/join', isNotLoggedIn, join);
+router.post('/api/auth/join', join);
 
 router.post('/api/auth/login', isNotLoggedIn, login);
 

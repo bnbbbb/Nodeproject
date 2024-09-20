@@ -1,3 +1,4 @@
+const { sequelize } = require('../models/mysql');
 const { Review, QnA, Consult } = require('../models/mysql/category');
 const {
   ReviewComment,
@@ -23,7 +24,6 @@ const modelMapping = {
 // 타입에 따른 모델 반환 함수
 const getModelByType = (type, modelType) => {
   const model = modelMapping[type]?.[modelType];
-  console.log(model);
 
   if (!model) {
     const error = new Error(
@@ -38,9 +38,18 @@ const getModelByType = (type, modelType) => {
 // 게시글 조회 함수
 const getPost = async (type, postId) => {
   const currentModel = getModelByType(type, 'post');
-  console.log(currentModel);
+  const tableName = currentModel.getTableName();
 
-  const findPost = await currentModel.findByPk(postId);
+  // const findPost = await currentModel.findByPk(postId);
+
+  const postQuery = `select * from ${tableName} where id = :postId`;
+
+  const findPost = await sequelize.query(postQuery, {
+    replacements: {
+      postId,
+    },
+    type: sequelize.QueryTypes.SELECT,
+  });
 
   if (!findPost) {
     const error = new Error(`해당 ${type}의 게시글을 찾지 못하였습니다.`);
@@ -57,10 +66,15 @@ const getCommentModel = (type) => {
 };
 
 // 댓글 존재 여부 확인
-const verifyCommentExists = async (CommentModel, commentId) => {
-  const comment = await CommentModel.findByPk(commentId);
-  // console.log(comment);
-
+const verifyCommentExists = async (type, CommentModel, commentId) => {
+  // const comment = await CommentModel.findByPk(commentId);
+  const commentQuery = `select * from ${type}_comments WHERE id = :commentId;`;
+  const comment = await sequelize.query(commentQuery, {
+    replacements: {
+      commentId,
+    },
+    type: sequelize.QueryTypes.SELECT,
+  });
   if (!comment) {
     const error = new Error(`해당 댓글을 찾지 못했습니다.`);
     error.status = 404;
@@ -89,7 +103,7 @@ const verifyCommentCategory = (comment, type, categoryId) => {
 
 const commentVerify = async (type, commentId, commenterId, categoryId) => {
   const CommentModel = getCommentModel(type);
-  const comment = await verifyCommentExists(CommentModel, commentId);
+  const comment = await verifyCommentExists(type, CommentModel, commentId);
   verifyCommenter(comment, commenterId);
   verifyCommentCategory(comment, type, categoryId);
 
