@@ -10,7 +10,8 @@ const {
   deleteRefreshToken,
 } = require('../utils/token');
 const { sequelize } = require('../models/mysql');
-
+const { hashPassword } = require('../utils/user');
+const handleError = require('../utils/utils');
 dotenv.config();
 
 const join = async (req, res, next) => {
@@ -36,7 +37,8 @@ const join = async (req, res, next) => {
     //   error.status = 400
     //   throw error
     // }
-    const passwordHash = await bcrypt.hash(userpassword, 12);
+    // const passwordHash = await bcrypt.hash(userpassword, 12);
+    const passwordHash = await hashPassword(userpassword, 12);
 
     // const newUser = await User.create({
     //   email: useremail,
@@ -61,11 +63,10 @@ const join = async (req, res, next) => {
       },
       type: sequelize.QueryTypes.SELECT,
     });
+    console.log(exUser === true);
 
-    if (exUser) {
-      const error = new Error('현재 사용중인 이메일 입니다.');
-      error.status = 400;
-      throw error;
+    if (exUser.length > 0) {
+      return handleError(400, '현재 사용중인 이메일 입니다.', next);
     }
 
     const formattedStartDate = moment(startDate).format('YYYY-MM-DD HH:mm:ss');
@@ -107,9 +108,10 @@ const login = async (req, res, next) => {
       return next(err);
     }
     if (!user) {
+      return handleError(401, info.message, next);
       const error = new Error(info.message);
       error.status = 401;
-      throw error;
+      throw next(error);
     }
     try {
       // JWT 토큰 생성
@@ -145,20 +147,9 @@ const logout = async (req, res, next) => {
   try {
     const accessToken = req.headers.authorization.split(' ')[1];
     const refreshToken = req.cookies.refreshtoken;
-    if (!refreshToken) {
-      return res.status(400).json({
-        code: 400,
-        message: 'RefreshToken이 쿠키에 없습니다. ',
-      });
-    }
+
     // req.body 에 담는거
     // const { refreshToken } = req.body;
-    // if (!refreshToken) {
-    //   return res.status(400).json({
-    //     code: 400,
-    //     message: 'Refresh token을 requestbody에 담아주세요',
-    //   });
-    // }
 
     const result = await deleteRefreshToken(refreshToken, accessToken);
 
@@ -171,11 +162,15 @@ const logout = async (req, res, next) => {
   }
 };
 
-// TODO 회원정보 수정
+// 회원정보 수정
 const userUpdate = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const updateUser = req.body;
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return handleError(404, '해당 유저를 찾지 못했습니다.', next);
+    }
     if (updateUser.password) {
       delete updateUser.password;
       delete updateUser.email;
@@ -186,9 +181,7 @@ const userUpdate = async (req, res, next) => {
     });
 
     if (updatedCount === 0) {
-      return res
-        .status(404)
-        .json({ code: 404, message: '해당 유저를 찾지 못했습니다.' });
+      return handleError(404, '업데이트할 데이터가 없습니다.', next);
     }
     const updatedUser = await User.findByPk(userId, {
       attributes: { exclude: ['password'] },
@@ -208,21 +201,21 @@ const userPasswordChange = async (req, res, next) => {
     console.log(user);
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ code: 404, message: '해당 유저를 찾지 못하였습니다.' });
+      return handleError(404, '해당 유저를 찾지 못했습니다.', next);
     }
     // 비밀번호 체크
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(400).json({
-        code: 400,
-        message: '입력한 현재 비밀번호가 일치하지 않습니다.',
-      });
+      return handleError(
+        404,
+        '입력한 현재 비밀번호가 일치하지 않습니다.',
+        next
+      );
     }
-    const hash = await bcrypt.hash(newPassword, 12);
-    user.password = hash;
+    const passwordHash = await hashPassword(newPassword, 12);
+
+    user.password = passwordHash;
     await user.save();
     return res
       .status(200)
@@ -240,11 +233,11 @@ const findUserEmail = async (req, res, next) => {
       where: { username, contact },
     });
     if (!user) {
-      return res.status(404).json({
-        code: 404,
-        message:
-          '해당 유저를 찾지 못하였습니다. 이름 또는 연락처를 확인해주세요.',
-      });
+      return handleError(
+        404,
+        '해당 유저를 찾지 못하였습니다. 이름 또는 연락처를 확인해주세요.',
+        next
+      );
     }
     return res
       .status(200)
@@ -262,11 +255,11 @@ const findUserPassword = async (req, res, next) => {
       where: { email, username, contact },
     });
     if (!user) {
-      return res.status(404).json({
-        code: 404,
-        message:
-          '해당 유저를 찾지 못하였습니다. 이메일, 이름 또는 연락처를 확인해주세요.',
-      });
+      return handleError(
+        404,
+        '해당 유저를 찾지 못하였습니다. 이메일, 이름 또는 연락처를 확인해주세요.',
+        next
+      );
     }
     return res.status(200).json({
       code: 200,
@@ -287,14 +280,10 @@ const resetPassword = async (req, res, next) => {
 
     const user = await User.findByPk(userId);
     if (!user) {
-      return res
-        .status(404)
-        .json({ code: 404, message: '해당 유저를 찾지 못하였습니다.' });
+      return handleError(404, '해당 유저를 찾지 못했습니다.', next);
     }
     if (password1 !== password2) {
-      return res
-        .status(404)
-        .json({ code: 404, message: '비밀번호가 일치하지 않습니다.' });
+      return handleError(400, '비밀번호가 일치하지 않습니다.', next);
     }
 
     const hash = await bcrypt.hash(password1, 12);
@@ -312,12 +301,7 @@ const resetPassword = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
-    //
-    console.log(req.user.id);
-
     const userId = req.user.id;
-    console.log(userId);
-
     await User.destroy({ where: { id: userId } });
     return res
       .status(200)

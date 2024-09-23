@@ -11,9 +11,9 @@ const {
   verifyCommenter,
 } = require('../utils/commentUtils');
 const { sequelize } = require('../models/mysql');
-const { replaceOne } = require('../models/mongo/blacklist');
 
 const createComment = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { type, postId } = req.params;
     const { comment } = req.body;
@@ -41,18 +41,21 @@ const createComment = async (req, res, next) => {
         commenterId,
       },
       type: sequelize.QueryTypes.INSERT,
+      transaction,
     });
-
+    await transaction.commit();
     res
       .status(200)
       .json({ code: 200, message: '댓글이 성공적으로 생성되었습니다.' });
   } catch (error) {
+    await transaction.rollback();
     console.error(error);
     next(error);
   }
 };
 
 const editComment = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { type, categoryId, commentId } = req.params;
     const updatedData = req.body;
@@ -86,22 +89,27 @@ const editComment = async (req, res, next) => {
         commentId,
       },
       type: sequelize.QueryTypes.UPDATE,
+      transaction,
     });
-
+    await transaction.commit();
     if (updatedCount === 0) {
-      const error = new Error('댓글 수정 중 오류가 발생했습니다.');
+      const error = new Error(
+        '댓글 수정 중 오류가 발생했습니다. 다시 시도해 주세요.'
+      );
       throw error;
     }
     const updatedComment = await CommentModel.findByPk(commentId);
 
     return res.status(200).json({ code: 200, message: updatedComment });
   } catch (error) {
+    await transaction.rollback();
     console.error(error);
     next(error);
   }
 };
 
 const deleteComment = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { type, categoryId, commentId } = req.params;
     const commenterId = req.user.id;
@@ -132,12 +140,14 @@ const deleteComment = async (req, res, next) => {
     await sequelize.query(deleteQuery, {
       replacements: { commentId },
       type: sequelize.QueryTypes.DELETE,
+      transaction,
     });
-
+    await transaction.commit();
     return res
       .status(200)
       .json({ code: 200, message: '댓글을 삭제하였습니다.' });
   } catch (error) {
+    await transaction.rollback();
     console.error(error);
     next(error);
   }

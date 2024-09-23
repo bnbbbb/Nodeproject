@@ -9,14 +9,14 @@ const { sequelize } = require('../models/mysql');
 const { verifyPost } = require('../utils/postUtils');
 
 exports.createConsult = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { title, content } = req.body;
     const userId = req.user.id;
-
     // ORM
     // const consult = await Consult.create({
     //   //verifyToken으로 userId 전달
-    //   writer: req.user.id,
+    //   writer: userId,
     //   title,
     //   content,
     // });
@@ -40,11 +40,14 @@ exports.createConsult = async (req, res, next) => {
     const consults = await sequelize.query(query, {
       replacements: [userId, title, content], // 세 개의 값을 전달
       type: sequelize.QueryTypes.INSERT,
+      transaction,
     });
+    await transaction.commit();
     return res
       .status(201)
       .json({ code: 201, message: 'consult가 성공적으로 생성되었습니다.' });
   } catch (error) {
+    await transaction.rollback();
     console.error(error);
     next(error);
   }
@@ -87,11 +90,9 @@ exports.consultList = async (req, res, next) => {
           .format('YYYY-MM-DD HH:mm:ss'),
       };
     });
-
     return res.status(200).json({ code: 200, formatteConsults });
   } catch (error) {
-    console.log(error);
-    // return res.status(500).json({ code: 500, message: error.message });
+    console.error(error);
     next(error);
   }
 };
@@ -238,6 +239,7 @@ exports.searchConsult = async (req, res, next) => {
 
 // 상담 수정
 exports.editConsult = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { consultId } = req.params;
     const updateData = req.body;
@@ -281,6 +283,7 @@ exports.editConsult = async (req, res, next) => {
         consultId,
       },
       type: sequelize.QueryTypes.UPDATE,
+      transaction,
     });
 
     if (updatedCount === 0) {
@@ -289,10 +292,11 @@ exports.editConsult = async (req, res, next) => {
         .json({ code: 404, message: '상담 수정 중 오류가 발생했습니다.' });
     }
 
+    await transaction.commit();
     const updateConsult = await Consult.findByPk(consultId);
-
     return res.status(200).json({ code: 200, message: updateConsult });
   } catch (error) {
+    await transaction.rollback();
     console.error(error);
     next(error);
   }
@@ -300,6 +304,7 @@ exports.editConsult = async (req, res, next) => {
 
 // 삭제
 exports.deleteConsult = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { consultId } = req.params;
     const userId = req.user.id;
@@ -327,10 +332,12 @@ exports.deleteConsult = async (req, res, next) => {
     await sequelize.query(deleteQuery, {
       replacements: { consultId },
       type: sequelize.QueryTypes.DELETE,
+      transaction,
     });
-
+    await transaction.commit();
     return res.status(200).json({ message: 'consult 삭제에 성공하였습니다.' });
   } catch (error) {
+    await transaction.rollback();
     next(error);
   }
 };

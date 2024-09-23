@@ -39,16 +39,16 @@ const verifyAccessToken = (accessToken) => {
 };
 
 // 토큰 관련 에러 처리
-const handleTokenError = (error, res) => {
+const handleTokenError = (error, res, next) => {
   console.log(error);
   if (error.name === 'TokenExpiredError') {
     const errors = new Error('토큰이 만료되었습니다.');
     errors.status = 419;
-    throw errors;
+    return next(errors);
   }
   const errors = new Error('유효하지 않은 토큰입니다.');
   errors.status = 401;
-  throw errors;
+  return next(errors);
 };
 
 // isNotLoggedIn: 로그인 여부 확인
@@ -79,7 +79,7 @@ const verifyToken = (required = true, shouldcheckBlacklist = false) => {
       res.locals.decoded = decoded;
       return next();
     } catch (error) {
-      return handleTokenError(error, res);
+      return handleTokenError(error, res, next);
     }
   };
 };

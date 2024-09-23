@@ -6,13 +6,35 @@ const express = require('express');
 //   notUser,
 // } = require('../middlewares/auth');
 const uploadImage = require('../../utils/s3Utils');
-const createPresentation = require('../../controllers/admin/presentation');
+const {
+  createPresentation,
+  listPresentation,
+  editPresentation,
+  deletePresentation,
+} = require('../../controllers/admin/presentation');
+const { verifyToken } = require('../../middlewares/auth');
 const router = express.Router();
 
 router.post(
   '/api/presentation/create',
   uploadImage.single('image'),
+  verifyToken,
   createPresentation
+);
+
+router.get('/api/presentation/list', listPresentation);
+
+router.patch(
+  '/api/presentation/edit/:presentationId',
+  uploadImage.single('image'),
+  verifyToken,
+  editPresentation
+);
+
+router.delete(
+  '/api/presentation/delete/:presentationId',
+  verifyToken,
+  deletePresentation
 );
 
 module.exports = router;

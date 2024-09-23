@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const refreshTokenSchema = require('../models/mongo/token');
 const blackListSchema = require('../models/mongo/blacklist');
 const User = require('../models/mysql/user');
+const handleError = require('./utils');
 dotenv.config();
 
 const generateAccessToken = (payload) => {
