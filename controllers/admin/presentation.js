@@ -46,11 +46,7 @@ const editPresentation = async (req, res, next) => {
     const updateData = req.body;
 
     const userId = req.user.id;
-    const verificationResult = await verifyPresentation(
-      presentationId,
-      userId,
-      next
-    );
+    const verificationResult = await verifyPresentation(presentationId, userId);
 
     if (!verificationResult) return;
 
@@ -84,7 +80,7 @@ const deletePresentation = async (req, res, next) => {
     const { presentationId } = req.params;
     const userId = req.user.id;
 
-    const presentation = await verifyPresentation(presentationId, userId, next);
+    const presentation = await verifyPresentation(presentationId, userId);
     console.log(presentation);
 
     if (!presentation) return;
