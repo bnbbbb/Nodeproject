@@ -25,6 +25,10 @@ class Foundation extends Sequelize.Model {
   }
   static associate(db) {
     db.Foundation.belongsTo(db.User, { foreignKey: 'writer', targetKey: 'id' });
+    db.Foundation.hasMany(db.Quotation, {
+      foreignKey: 'foundation_id',
+      targetKey: 'id',
+    });
   }
 }
 
