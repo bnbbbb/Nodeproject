@@ -19,6 +19,7 @@ const commentRouter = require('./routes/comment');
 const foundationRouter = require('./routes/foundation');
 const adminFdRouter = require('./routes/admin/foundation');
 const presentationRouter = require('./routes/admin/presentation');
+const quotationRouter = require('./routes/admin/quotation');
 const connection = require('./models/mongo/connection');
 const passportConfig = require('./passport');
 // 조회수
@@ -60,6 +61,7 @@ app.use('', consultRouter);
 app.use('', commentRouter);
 app.use('', foundationRouter);
 app.use('', presentationRouter);
+app.use('', quotationRouter);
 
 // admin
 app.use('/api/foundation', adminFdRouter);
