@@ -7,7 +7,12 @@ const { QnAComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
 const { verifyPost } = require('../utils/postUtils');
 const { sequelize } = require('../models/mysql');
-
+const requestIp = require('request-ip');
+const { v4: uuidv4 } = require('uuid');
+const hitsPost = require('../utils/hitsPost');
+const handleError = require('../utils/utils');
+const verifyPostExists = require('../utils/postUtils');
+hitsPost;
 // QnA 관련 메소드
 
 exports.createQnA = async (req, res, next) => {
@@ -329,133 +334,65 @@ exports.deleteQnA = async (req, res, next) => {
 // 상세 페이지
 // TODO 조회수 수정 필요함
 exports.getQnA = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { qnaId } = req.params;
-
-    let userId = null;
-
-    // 로그인한 사용자 확인
-    if (req.user) {
-      userId = req.user.id;
-    }
-
-    // 조회수 중복 방지
-    let viewedData = {};
-    if (req.cookies.viewedData) {
-      try {
-        viewedData = JSON.parse(req.cookies.viewedData);
-      } catch (err) {
-        console.error('쿠키 파싱 오류:', err);
-      }
-    }
-
-    viewedData.qnas = viewedData.qnas || {};
-
-    // // 로그인 사용자 처리
-    // if (userId) {
-    //   if (!viewedData.qnas[userId]) {
-    //     viewedData.qnas[userId] = {};
-    //   }
-    //   if (!viewedData.qnas[userId][qnaId]) {
-    //     await QnA.increment('hits', { where: { id: qnaId } });
-    //     viewedData.qnas[userId][qnaId] = true;
-    //     res.cookie('viewedData', JSON.stringify(viewedData), {
-    //       maxAge: 24 * 60 * 60 * 1000,
-    //       httpOnly: true,
-    //     });
-    //   }
-    // }
-
-    // // 비로그인 사용자 처리
-    // else {
-    //   const ipAddress = req.ip;
-    //   if (!viewedData.qnas[ipAddress]) {
-    //     viewedData.qnas[ipAddress] = {};
-    //   }
-    //   if (!viewedData.qnas[ipAddress][qnaId]) {
-    //     await QnA.increment('hits', { where: { id: qnaId } });
-    //     viewedData.qnas[ipAddress][qnaId] = true;
-    //     res.cookie('viewedData', JSON.stringify(viewedData), {
-    //       maxAge: 24 * 60 * 60 * 1000,
-    //       httpOnly: true,
-    //     });
-    //   }
-    // }
-    // { qnas: { '1': { '2': true }, '::1': { '2': true } } }
-    // Query
-    // 로그인 사용자 처리
-    if (userId) {
-      if (!viewedData.qnas[userId]) {
-        viewedData.qnas[userId] = {};
-      }
-      if (!viewedData.qnas[userId][qnaId]) {
-        const incrementQuery = `
-          UPDATE qnas
-          SET hits = hits + 1
-          WHERE id = :qnaId
-        `;
-        await sequelize.query(incrementQuery, {
-          replacements: { qnaId },
-          type: sequelize.QueryTypes.UPDATE,
-        });
-        viewedData.qnas[userId][qnaId] = true;
-        res.cookie('viewedData', JSON.stringify(viewedData), {
-          maxAge: 24 * 60 * 60 * 1000,
-          httpOnly: true,
-        });
-      }
-    }
-
-    // 비로그인 사용자 처리
-    else {
-      const ipAddress = req.ip;
-      if (!viewedData.qnas[ipAddress]) {
-        viewedData.qnas[ipAddress] = {};
-      }
-      if (!viewedData.qnas[ipAddress][qnaId]) {
-        const incrementQuery = `
-          UPDATE qnas
-          SET hits = hits + 1
-          WHERE id = :qnaId
-        `;
-        await sequelize.query(incrementQuery, {
-          replacements: { qnaId },
-          type: sequelize.QueryTypes.UPDATE,
-        });
-        viewedData.qnas[ipAddress][qnaId] = true;
-        res.cookie('viewedData', JSON.stringify(viewedData), {
-          maxAge: 24 * 60 * 60 * 1000,
-          httpOnly: true,
-        });
-      }
-    }
-    console.log(viewedData);
-
-    const qna = await QnA.findOne({
-      where: { id: qnaId },
-      include: [
-        {
-          model: QnAComment,
-        },
-      ],
+    const qnaQueryFirst = `
+      select * from qnas
+      where id = ?
+      `;
+    const qnaFirst = await sequelize.query(qnaQueryFirst, {
+      replacements: [qnaId],
+      type: sequelize.QueryTypes.SELECT,
     });
-    if (!qna) {
-      const error = new Error('해당 상담내역이 존재하지 않습니다.');
-      error.status = 401;
-      throw error;
-    }
-    const formatteQnAs = {
-      ...qna.toJSON(),
-      createdAt: moment(qna.createdAt)
-        .tz('Asia/Seoul')
-        .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(qna.updatedAt)
-        .tz('Asia/Seoul')
-        .format('YYYY-MM-DD HH:mm:ss'),
-    };
+    console.log('qnaFirst: ', qnaFirst);
 
-    return res.status(200).json({ code: 200, formatteQnAs });
+    if (qnaFirst.length < 1)
+      return handleError(404, 'QnA가 존재하지 않습니다.');
+
+    let userId = req.user ? req.user.id : null;
+
+    let userIp = requestIp.getClientIp(req);
+    console.log(userIp);
+
+    if (userIp.startsWith('::ffff:')) {
+      userIp = userIp.slice(7);
+    }
+
+    const hits = await hitsPost(qnaId, userIp, 'QnA', { transaction });
+
+    if (!hits) {
+      return res
+        .status(200)
+        .json({ message: '24시간 뒤 조회수를 증가할 수 있습니다.' });
+    }
+
+    const qnaUpdateQuery = `
+      update qnas
+      set hits = hits + 1
+      where id = ?
+    `;
+    const qnaUpdate = await sequelize.query(qnaUpdateQuery, {
+      replacements: [qnaId],
+      type: sequelize.QueryTypes.UPDATE,
+      transaction,
+    });
+
+    const qnaQuery = `
+      select * from qnas
+      where id = ?
+      `;
+    const qna = await sequelize.query(qnaQuery, {
+      replacements: [qnaId],
+      type: sequelize.QueryTypes.SELECT,
+    });
+    await transaction.commit();
+
+    return res.status(200).json({ code: 200, qna1 });
   } catch (error) {
+    await transaction.rollback();
+
     console.log(error);
     next(error);
   }

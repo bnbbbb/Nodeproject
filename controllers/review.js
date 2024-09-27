@@ -43,6 +43,7 @@ exports.createReview = async (req, res, next) => {
 };
 
 // 전체 리뷰 보기
+// TODO 사용자 이름도 같이
 exports.reviewList = async (req, res, next) => {
   try {
     // const reviews = await Review.findAll();

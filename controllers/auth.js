@@ -109,9 +109,6 @@ const login = async (req, res, next) => {
     }
     if (!user) {
       return handleError(401, info.message, next);
-      const error = new Error(info.message);
-      error.status = 401;
-      throw next(error);
     }
     try {
       // JWT 토큰 생성

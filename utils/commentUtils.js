@@ -69,12 +69,13 @@ const getCommentModel = (type) => {
 const verifyCommentExists = async (type, CommentModel, commentId) => {
   // const comment = await CommentModel.findByPk(commentId);
   const commentQuery = `select * from ${type}_comments WHERE id = :commentId;`;
-  const comment = await sequelize.query(commentQuery, {
+  const comments = await sequelize.query(commentQuery, {
     replacements: {
       commentId,
     },
     type: sequelize.QueryTypes.SELECT,
   });
+  const comment = comments[0];
   if (!comment) {
     const error = new Error(`해당 댓글을 찾지 못했습니다.`);
     error.status = 404;
@@ -85,6 +86,8 @@ const verifyCommentExists = async (type, CommentModel, commentId) => {
 
 // 댓글 작성자 확인
 const verifyCommenter = (comment, commenterId) => {
+  console.log(comment.commenter, commenterId);
+
   if (comment.commenter !== commenterId) {
     const error = new Error('본인이 작성한 댓글만 수정/삭제할 수 있습니다.');
     error.status = 403;
