@@ -7,6 +7,8 @@ const { ConsultComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
 const { sequelize } = require('../models/mysql');
 const { verifyPost } = require('../utils/postUtils');
+const requestIp = require('request-ip');
+const hitsPost = require('../utils/hitsPost');
 
 exports.createConsult = async (req, res, next) => {
   const transaction = await sequelize.transaction();
@@ -344,85 +346,66 @@ exports.deleteConsult = async (req, res, next) => {
 
 // 상세 페이지
 exports.getConsult = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { consultId } = req.params;
-    let userId = null;
-
-    // 로그인한 사용자 확인
-    if (req.user) {
-      userId = req.user.id;
-    }
-
-    // 조회수 중복 방지
-    let viewedData = {};
-    if (req.cookies.viewedData) {
-      try {
-        viewedData = JSON.parse(req.cookies.viewedData);
-      } catch (err) {
-        console.error('쿠키 파싱 오류:', err);
-      }
-    }
-
-    viewedData.consults = viewedData.consults || {};
-
-    // 로그인 사용자 처리
-    if (userId) {
-      if (!viewedData.consults[userId]) {
-        viewedData.consults[userId] = {};
-      }
-      if (!viewedData.consults[userId][consultId]) {
-        await Consult.increment('hits', { where: { id: consultId } });
-        viewedData.consults[userId][consultId] = true;
-        res.cookie('viewedData', JSON.stringify(viewedData), {
-          maxAge: 24 * 60 * 60 * 1000, // 24시간
-          httpOnly: true,
-        });
-      }
-    }
-
-    // 비로그인 사용자 처리
-    else {
-      const ipAddress = req.ip;
-      if (!viewedData.consults[ipAddress]) {
-        viewedData.consults[ipAddress] = {};
-      }
-      if (!viewedData.consults[ipAddress][consultId]) {
-        await Consult.increment('hits', { where: { id: consultId } });
-        viewedData.consults[ipAddress][consultId] = true;
-
-        res.cookie('viewedData', JSON.stringify(viewedData), {
-          maxAge: 24 * 60 * 60 * 1000,
-          httpOnly: true,
-        });
-      }
-    }
-
-    const consult = await Consult.findOne({
-      where: { id: consultId },
-      include: [
-        {
-          model: ConsultComment,
-        },
-      ],
+    const consultQueryFirst = `
+      select * from consults
+      where id = ?
+      `;
+    const consultFirst = await sequelize.query(consultQueryFirst, {
+      replacements: [consultId],
+      type: sequelize.QueryTypes.SELECT,
     });
-    if (!consult) {
-      const error = new Error('해당 상담내역이 존재하지 않습니다.');
-      error.status = 401;
-      throw error;
-    }
-    const formatteConsults = {
-      ...consult.toJSON(),
-      createdAt: moment(consult.createdAt)
-        .tz('Asia/Seoul')
-        .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(consult.updatedAt)
-        .tz('Asia/Seoul')
-        .format('YYYY-MM-DD HH:mm:ss'),
-    };
 
-    return res.status(200).json({ code: 200, formatteConsults });
+    if (consultFirst.length < 1)
+      return handleError(404, '해당 상담내역이 존재하지 않습니다.');
+
+    let userId = req.user ? req.user.id : null;
+
+    let userIp = requestIp.getClientIp(req);
+    console.log(userIp);
+
+    if (userIp.startsWith('::ffff:')) {
+      userIp = userIp.slice(7);
+    }
+
+    // const hits = await hitsPost(consultId, userIp, 'consult', { transaction });
+    const hits = await hitsPost.createHitPost(consultId, userIp, 'Consult');
+
+    if (!hits) {
+      return res
+        .status(200)
+        .json({ message: '24시간 뒤 조회수를 증가할 수 있습니다.' });
+    }
+
+    const consultUpdateQuery = `
+      update consults
+      set hits = hits + 1
+      where id = ?
+    `;
+    const consultUpdate = await sequelize.query(consultUpdateQuery, {
+      replacements: [consultId],
+      type: sequelize.QueryTypes.UPDATE,
+      transaction,
+    });
+    await transaction.commit();
+
+    const consultQuery = `
+      select * from consults
+      where id = ?
+      `;
+    const consult = await sequelize.query(consultQuery, {
+      replacements: [consultId],
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    return res.status(200).json({ code: 200, consult });
   } catch (error) {
-    console.error(error);
+    await transaction.rollback();
+
+    console.log(error);
     next(error);
   }
 };

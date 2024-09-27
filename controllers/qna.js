@@ -12,7 +12,6 @@ const { v4: uuidv4 } = require('uuid');
 const hitsPost = require('../utils/hitsPost');
 const handleError = require('../utils/utils');
 const verifyPostExists = require('../utils/postUtils');
-hitsPost;
 // QnA 관련 메소드
 
 exports.createQnA = async (req, res, next) => {
@@ -346,10 +345,9 @@ exports.getQnA = async (req, res, next) => {
       replacements: [qnaId],
       type: sequelize.QueryTypes.SELECT,
     });
-    console.log('qnaFirst: ', qnaFirst);
 
     if (qnaFirst.length < 1)
-      return handleError(404, 'QnA가 존재하지 않습니다.');
+      return handleError(404, '해당 QnA가 존재하지 않습니다.');
 
     let userId = req.user ? req.user.id : null;
 
@@ -360,7 +358,8 @@ exports.getQnA = async (req, res, next) => {
       userIp = userIp.slice(7);
     }
 
-    const hits = await hitsPost(qnaId, userIp, 'QnA', { transaction });
+    // const hits = await hitsPost(qnaId, userIp, 'QnA', { transaction });
+    const hits = await hitsPost.createHitPost(qnaId, userIp, 'QnA');
 
     if (!hits) {
       return res
@@ -378,6 +377,7 @@ exports.getQnA = async (req, res, next) => {
       type: sequelize.QueryTypes.UPDATE,
       transaction,
     });
+    await transaction.commit();
 
     const qnaQuery = `
       select * from qnas
@@ -387,9 +387,8 @@ exports.getQnA = async (req, res, next) => {
       replacements: [qnaId],
       type: sequelize.QueryTypes.SELECT,
     });
-    await transaction.commit();
 
-    return res.status(200).json({ code: 200, qna1 });
+    return res.status(200).json({ code: 200, qna });
   } catch (error) {
     await transaction.rollback();
 

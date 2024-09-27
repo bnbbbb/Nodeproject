@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Review, review, Consult } = require('../models/mysql/category');
+const { Review } = require('../models/mysql/category');
 const User = require('../models/mysql/user');
 const pool = require('../utils/sql');
 const jwt = require('jsonwebtoken');
@@ -7,6 +7,8 @@ const { ReviewComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
 const { verifyPost } = require('../utils/postUtils');
 const { sequelize } = require('../models/mysql');
+const requestIp = require('request-ip');
+const hitsPost = require('../utils/hitsPost');
 
 // 리뷰 관련 메소드
 exports.createReview = async (req, res, next) => {
@@ -326,80 +328,66 @@ exports.deleteReview = async (req, res, next) => {
 
 // 상세 페이지
 exports.getReview = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { reviewId } = req.params;
-
-    let userId = null;
-
-    // 로그인한 사용자 확인
-    if (req.user) {
-      userId = req.user.id;
-    }
-
-    // 조회수 중복 방지
-    let viewedData = {};
-    if (req.cookies.viewedData) {
-      try {
-        viewedData = JSON.parse(req.cookies.viewedData);
-      } catch (err) {
-        console.error('쿠키 파싱 오류:', err);
-      }
-    }
-
-    viewedData.reviews = viewedData.reviews || {};
-
-    // 로그인 사용자 처리
-    if (userId) {
-      if (!viewedData.reviews[userId]) {
-        viewedData.reviews[userId] = {};
-      }
-      if (!viewedData.reviews[userId][reviewId]) {
-        await Review.increment('hits', { where: { id: reviewId } });
-        viewedData.reviews[userId][reviewId] = true;
-        res.cookie('viewedData', JSON.stringify(viewedData), {
-          maxAge: 24 * 60 * 60 * 1000,
-          httpOnly: true,
-        });
-      }
-    }
-
-    // 비로그인 사용자 처리
-    else {
-      const ipAddress = req.ip;
-      if (!viewedData.reviews[ipAddress]) {
-        viewedData.reviews[ipAddress] = {};
-      }
-      if (!viewedData.reviews[ipAddress][reviewId]) {
-        await Review.increment('hits', { where: { id: reviewId } });
-        viewedData.reviews[ipAddress][reviewId] = true;
-        res.cookie('viewedData', JSON.stringify(viewedData), {
-          maxAge: 24 * 60 * 60 * 1000,
-          httpOnly: true,
-        });
-      }
-    }
-
-    const review = await Review.findOne({
-      where: { id: reviewId },
-      include: [
-        {
-          model: ReviewComment,
-        },
-      ],
+    const reviewQueryFirst = `
+      select * from reviews
+      where id = ?
+      `;
+    const reviewFirst = await sequelize.query(reviewQueryFirst, {
+      replacements: [reviewId],
+      type: sequelize.QueryTypes.SELECT,
     });
 
-    const formattedReview = {
-      ...review.toJSON(),
-      createdAt: moment(review.createdAt)
-        .tz('Asia/Seoul')
-        .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(review.updatedAt)
-        .tz('Asia/Seoul')
-        .format('YYYY-MM-DD HH:mm:ss'),
-    };
+    if (reviewFirst.length < 1)
+      return handleError(404, '해당 리뷰내역이 존재하지 않습니다.');
 
-    return res.status(200).json({ code: 200, message: formattedReview });
+    let userId = req.user ? req.user.id : null;
+
+    let userIp = requestIp.getClientIp(req);
+    console.log(userIp);
+
+    if (userIp.startsWith('::ffff:')) {
+      userIp = userIp.slice(7);
+    }
+
+    // const hits = await hitsPost(reviewId, userIp, 'review', { transaction });
+    const hits = await hitsPost.createHitPost(reviewId, userIp, 'Review');
+
+    if (!hits) {
+      return res
+        .status(200)
+        .json({ message: '24시간 뒤 조회수를 증가할 수 있습니다.' });
+    }
+
+    const reviewUpdateQuery = `
+      update reviews
+      set hits = hits + 1
+      where id = ?
+    `;
+    const reviewUpdate = await sequelize.query(reviewUpdateQuery, {
+      replacements: [reviewId],
+      type: sequelize.QueryTypes.UPDATE,
+      transaction,
+    });
+
+    await transaction.commit();
+
+    const reviewQuery = `
+      select * from reviews
+      where id = ?
+      `;
+    const review = await sequelize.query(reviewQuery, {
+      replacements: [reviewId],
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    return res.status(200).json({ code: 200, review });
   } catch (error) {
+    await transaction.rollback();
+
     console.log(error);
     next(error);
   }
