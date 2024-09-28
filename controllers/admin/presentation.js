@@ -81,8 +81,6 @@ const deletePresentation = async (req, res, next) => {
     const userId = req.user.id;
 
     const presentation = await verifyPresentation(presentationId, userId);
-    console.log(presentation);
-
     if (!presentation) return;
 
     await presentation.destroy();

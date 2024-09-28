@@ -166,7 +166,6 @@ exports.editQuotation = async (req, res, next) => {
 exports.getQuotation = async (req, res, next) => {
   try {
     const { quotationId } = req.params;
-    console.log(quotationId);
 
     const quotationQuery = `
             select * from quotations

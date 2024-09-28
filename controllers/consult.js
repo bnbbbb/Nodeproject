@@ -264,7 +264,6 @@ exports.editConsult = async (req, res, next) => {
       replacements: { consultId },
       type: sequelize.QueryTypes.SELECT,
     });
-    console.log(consult);
 
     await verifyPost(consult, userId, '상담');
     const title = updateData.title || consult.title;
@@ -365,7 +364,6 @@ exports.getConsult = async (req, res, next) => {
     let userId = req.user ? req.user.id : null;
 
     let userIp = requestIp.getClientIp(req);
-    console.log(userIp);
 
     if (userIp.startsWith('::ffff:')) {
       userIp = userIp.slice(7);
@@ -405,7 +403,7 @@ exports.getConsult = async (req, res, next) => {
   } catch (error) {
     await transaction.rollback();
 
-    console.log(error);
+    console.error(error);
     next(error);
   }
 };

@@ -87,7 +87,7 @@ exports.reviewList = async (req, res, next) => {
 
     return res.status(200).json({ code: 200, formattedReviews });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     next(error);
   }
 };
@@ -308,7 +308,6 @@ exports.deleteReview = async (req, res, next) => {
       replacements: { reviewId },
       type: sequelize.QueryTypes.SELECT,
     });
-    console.log(review);
 
     await verifyPost(review, userId, 'review');
 
@@ -347,7 +346,6 @@ exports.getReview = async (req, res, next) => {
     let userId = req.user ? req.user.id : null;
 
     let userIp = requestIp.getClientIp(req);
-    console.log(userIp);
 
     if (userIp.startsWith('::ffff:')) {
       userIp = userIp.slice(7);
@@ -388,7 +386,7 @@ exports.getReview = async (req, res, next) => {
   } catch (error) {
     await transaction.rollback();
 
-    console.log(error);
+    console.error(error);
     next(error);
   }
 };

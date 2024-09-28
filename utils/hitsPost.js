@@ -14,7 +14,7 @@ const hitsPost = async (postId, userIp, modelType) => {
     });
     return hit;
   } catch (error) {
-    console.log(error);
+    console.error(error);
     throw error;
   }
 };
@@ -28,7 +28,7 @@ const createHitPost = async (postId, userIp, modelType) => {
     return hit;
   } catch (error) {
     await session.abortTransaction();
-    console.log(error);
+    console.error(error);
     throw error;
   } finally {
     session.endSession();

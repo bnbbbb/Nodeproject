@@ -63,7 +63,6 @@ const join = async (req, res, next) => {
       },
       type: sequelize.QueryTypes.SELECT,
     });
-    console.log(exUser === true);
 
     if (exUser.length > 0) {
       return handleError(400, '현재 사용중인 이메일 입니다.', next);
@@ -195,7 +194,6 @@ const userPasswordChange = async (req, res, next) => {
     // 유저 찾기
     const { currentPassword, newPassword } = req.body;
     const user = await User.findByPk(req.user.id);
-    console.log(user);
 
     if (!user) {
       return handleError(404, '해당 유저를 찾지 못했습니다.', next);

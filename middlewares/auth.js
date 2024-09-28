@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const blackListSchema = require('../models/mongo/blacklist');
+const Foundation = require('../models/mysql/foundation');
+const handleError = require('../utils/utils');
 
 dotenv.config();
 
@@ -40,7 +42,6 @@ const verifyAccessToken = (accessToken) => {
 
 // 토큰 관련 에러 처리
 const handleTokenError = (error, res, next) => {
-  console.log(error);
   if (error.name === 'TokenExpiredError') {
     const errors = new Error('토큰이 만료되었습니다.');
     errors.status = 419;
@@ -63,7 +64,6 @@ const isNotLoggedIn = (req, res, next) => {
   }
 };
 
-// 메인 검증 미들웨어
 const verifyToken = (required = true, shouldcheckBlacklist = false) => {
   return async (req, res, next) => {
     try {
@@ -84,10 +84,35 @@ const verifyToken = (required = true, shouldcheckBlacklist = false) => {
   };
 };
 
+const isAuthorOrAdmin = async (req, res, next) => {
+  const { foundationId } = req.params;
+
+  const userId = req.user.id;
+
+  try {
+    const foundation = await Foundation.findOne({
+      where: { id: foundationId },
+    });
+
+    if (!foundation) {
+      return handleError(404, '해당 글을 찾을 수 없습니다.');
+    }
+
+    if (foundation.writer !== userId && req.user.role !== 'admin') {
+      return handleError(403, '접근 권한이 없습니다.');
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 // export 모듈
 module.exports = {
   verifyToken: verifyToken(true, true), // 블랙리스트 체크와 함께 검증 수행
   isNotLoggedIn,
   isLoggedIn: verifyToken(false, false), // 블랙리스트 체크 없이 로그인 검증만 수행
   notUser: verifyToken(false, false),
+  isAuthorOrAdmin,
 };

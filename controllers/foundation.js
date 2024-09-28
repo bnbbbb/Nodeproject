@@ -105,7 +105,7 @@ exports.listFoundation = async (req, res, next) => {
 
     return res.status(200).json({ code: 200, foundations });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     next(error);
   }
 };

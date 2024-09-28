@@ -87,7 +87,7 @@ exports.qnaList = async (req, res, next) => {
     });
     return res.status(200).json({ code: 200, formatteQnAs });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     // return res.status(500).json({ code: 500, message: error.message });
     next(error);
   }
@@ -352,7 +352,6 @@ exports.getQnA = async (req, res, next) => {
     let userId = req.user ? req.user.id : null;
 
     let userIp = requestIp.getClientIp(req);
-    console.log(userIp);
 
     if (userIp.startsWith('::ffff:')) {
       userIp = userIp.slice(7);
@@ -391,8 +390,7 @@ exports.getQnA = async (req, res, next) => {
     return res.status(200).json({ code: 200, qna });
   } catch (error) {
     await transaction.rollback();
-
-    console.log(error);
+    console.error(error);
     next(error);
   }
 };
