@@ -1,9 +1,5 @@
 const express = require('express');
-const {
-  verifyToken,
-  notUser,
-  isAuthorOrAdmin,
-} = require('../middlewares/auth');
+const { verifyToken, isAuthorOrAdmin } = require('../middlewares/auth');
 const {
   createFoundation,
   getFoundation,

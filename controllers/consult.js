@@ -9,6 +9,7 @@ const { sequelize } = require('../models/mysql');
 const { verifyPost } = require('../utils/postUtils');
 const requestIp = require('request-ip');
 const hitsPost = require('../utils/hitsPost');
+const { groupedData } = require('../utils/commentUtils');
 
 exports.createConsult = async (req, res, next) => {
   const transaction = await sequelize.transaction();
@@ -372,34 +373,34 @@ exports.getConsult = async (req, res, next) => {
     // const hits = await hitsPost(consultId, userIp, 'consult', { transaction });
     const hits = await hitsPost.createHitPost(consultId, userIp, 'Consult');
 
-    if (!hits) {
-      return res
-        .status(200)
-        .json({ message: '24시간 뒤 조회수를 증가할 수 있습니다.' });
+    if (hits) {
+      const consultUpdateQuery = `
+        update consults
+        set hits = hits + 1
+        where id = ?
+      `;
+      const consultUpdate = await sequelize.query(consultUpdateQuery, {
+        replacements: [consultId],
+        type: sequelize.QueryTypes.UPDATE,
+        transaction,
+      });
+      await transaction.commit();
     }
 
-    const consultUpdateQuery = `
-      update consults
-      set hits = hits + 1
-      where id = ?
-    `;
-    const consultUpdate = await sequelize.query(consultUpdateQuery, {
-      replacements: [consultId],
-      type: sequelize.QueryTypes.UPDATE,
-      transaction,
-    });
-    await transaction.commit();
-
     const consultQuery = `
-      select * from consults
-      where id = ?
+      SELECT r.id AS reviewId, r.title, r.content, r.hits, r.createdAt AS reviewCreatedAt, r.writer,
+      c.id AS commentId, c.comment, c.createdAt AS commentCreatedAt, c.commenter
+      FROM reviews AS r
+      LEFT JOIN review_comments AS c ON c.review_id = r.id
+      WHERE r.id = ?;
       `;
     const consult = await sequelize.query(consultQuery, {
       replacements: [consultId],
       type: sequelize.QueryTypes.SELECT,
     });
+    const consultGroup = groupedData(consult, 'consult');
 
-    return res.status(200).json({ code: 200, consult });
+    return res.status(200).json({ code: 200, consultGroup });
   } catch (error) {
     await transaction.rollback();
 

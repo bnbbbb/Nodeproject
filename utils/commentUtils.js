@@ -104,6 +104,49 @@ const verifyCommentCategory = (comment, type, categoryId) => {
   }
 };
 
+const groupedData = (rawData, type) => {
+  return rawData.reduce((acc, row) => {
+    console.log(row);
+
+    // 게시판 타입에 따라 ID를 구분
+    const idKey =
+      type === 'review'
+        ? 'reviewId'
+        : type === 'consult'
+        ? 'consultId'
+        : type === 'qna'
+        ? 'qnaId'
+        : null;
+
+    if (!idKey) return acc;
+
+    const existingPost = acc.find((data) => data[idKey] === row[idKey]);
+
+    if (!existingPost) {
+      acc.push({
+        type: row.type,
+        [idKey]: row[idKey],
+        title: row.title,
+        content: row.content,
+        hits: row.hits,
+        createdAt: row.createdAt,
+        writer: row.writer,
+        comments: [],
+      });
+    }
+
+    const postToUpdate = acc.find((post) => post[idKey] === row[idKey]);
+    postToUpdate.comments.push({
+      commentId: row.commentId,
+      comment: row.comment,
+      commentCreatedAt: row.commentCreatedAt,
+      commenter: row.commenter,
+    });
+
+    return acc;
+  }, []);
+};
+
 const commentVerify = async (type, commentId, commenterId, categoryId) => {
   const CommentModel = getCommentModel(type);
   const comment = await verifyCommentExists(type, CommentModel, commentId);
@@ -118,4 +161,5 @@ module.exports = {
   commentVerify,
   getCommentModel,
   verifyCommenter,
+  groupedData,
 };

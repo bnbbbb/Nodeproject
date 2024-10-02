@@ -1,14 +1,13 @@
-const { Op } = require('sequelize');
 const { Review } = require('../models/mysql/category');
 const User = require('../models/mysql/user');
-const pool = require('../utils/sql');
-const jwt = require('jsonwebtoken');
 const { ReviewComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
 const { verifyPost } = require('../utils/postUtils');
 const { sequelize } = require('../models/mysql');
 const requestIp = require('request-ip');
 const hitsPost = require('../utils/hitsPost');
+const { groupedData } = require('../utils/commentUtils');
+const handleError = require('../utils/utils');
 
 // 리뷰 관련 메소드
 exports.createReview = async (req, res, next) => {
@@ -65,9 +64,10 @@ exports.reviewList = async (req, res, next) => {
 
     // SQL Query
     const reviewQuery = `
-      SELECT id, title, content, hits, createdAt, updatedAt, deletedAt, writer
-      FROM reviews
-      WHERE deletedAt IS NULL
+      select r.id, r.title, r.content, r.hits, r.createdAt,
+      r.updatedAt, r.deletedAt, r.writer, u.username, u.contact
+      from reviews as r
+      join users as u on r.writer = u.id
     `;
     const reviews = await sequelize.query(reviewQuery, {
       type: sequelize.QueryTypes.SELECT,
@@ -115,13 +115,14 @@ exports.myReviewList = async (req, res, next) => {
 
     // Query
     const query = `
-      SELECT id, title, content, hits, createdAt, updatedAt, deletedAt, writer
-      FROM reviews
-      WHERE deletedAt IS NULL AND writer = ?
+      select r.id, r.title, r.content, r.hits, r.createdAt,
+      r.updatedAt, r.deletedAt, r.writer, u.username, u.contact
+      from reviews as r
+      join users as u on r.writer = u.id
+      WHERE writer = ?
     `;
 
     const reviews = await sequelize.query(query, {
-      // bind: [userId],
       replacements: [userId],
       type: sequelize.QueryTypes.SELECT,
     });
@@ -354,35 +355,36 @@ exports.getReview = async (req, res, next) => {
     // const hits = await hitsPost(reviewId, userIp, 'review', { transaction });
     const hits = await hitsPost.createHitPost(reviewId, userIp, 'Review');
 
-    if (!hits) {
-      return res
-        .status(200)
-        .json({ message: '24시간 뒤 조회수를 증가할 수 있습니다.' });
+    if (hits) {
+      const reviewUpdateQuery = `
+        update reviews
+        set hits = hits + 1
+        where id = ?
+      `;
+      const reviewUpdate = await sequelize.query(reviewUpdateQuery, {
+        replacements: [reviewId],
+        type: sequelize.QueryTypes.UPDATE,
+        transaction,
+      });
+
+      await transaction.commit();
     }
 
-    const reviewUpdateQuery = `
-      update reviews
-      set hits = hits + 1
-      where id = ?
-    `;
-    const reviewUpdate = await sequelize.query(reviewUpdateQuery, {
-      replacements: [reviewId],
-      type: sequelize.QueryTypes.UPDATE,
-      transaction,
-    });
-
-    await transaction.commit();
-
     const reviewQuery = `
-      select * from reviews
-      where id = ?
+      SELECT r.id AS reviewId, r.title, r.content, r.hits, r.createdAt AS reviewCreatedAt, r.writer,
+      c.id AS commentId, c.comment, c.createdAt AS commentCreatedAt, c.commenter
+      FROM reviews AS r
+      LEFT JOIN review_comments AS c ON c.review_id = r.id
+      WHERE r.id = ?;
       `;
     const review = await sequelize.query(reviewQuery, {
       replacements: [reviewId],
       type: sequelize.QueryTypes.SELECT,
     });
 
-    return res.status(200).json({ code: 200, review });
+    const reviewGroup = groupedData(review, 'review');
+
+    return res.status(200).json({ code: 200, reviewGroup });
   } catch (error) {
     await transaction.rollback();
 

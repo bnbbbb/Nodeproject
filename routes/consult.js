@@ -1,10 +1,5 @@
 const express = require('express');
-const {
-  isLoggedIn,
-  isNotLoggedIn,
-  verifyToken,
-  notUser,
-} = require('../middlewares/auth');
+const { verifyToken, notUser } = require('../middlewares/auth');
 
 const {
   createConsult,

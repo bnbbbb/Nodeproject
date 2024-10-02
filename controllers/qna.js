@@ -12,6 +12,7 @@ const { v4: uuidv4 } = require('uuid');
 const hitsPost = require('../utils/hitsPost');
 const handleError = require('../utils/utils');
 const verifyPostExists = require('../utils/postUtils');
+const { groupedData } = require('../utils/commentUtils');
 // QnA 관련 메소드
 
 exports.createQnA = async (req, res, next) => {
@@ -331,7 +332,6 @@ exports.deleteQnA = async (req, res, next) => {
 };
 
 // 상세 페이지
-// TODO 조회수 수정 필요함
 exports.getQnA = async (req, res, next) => {
   const transaction = await sequelize.transaction();
 
@@ -360,34 +360,34 @@ exports.getQnA = async (req, res, next) => {
     // const hits = await hitsPost(qnaId, userIp, 'QnA', { transaction });
     const hits = await hitsPost.createHitPost(qnaId, userIp, 'QnA');
 
-    if (!hits) {
-      return res
-        .status(200)
-        .json({ message: '24시간 뒤 조회수를 증가할 수 있습니다.' });
+    if (hits) {
+      const qnaUpdateQuery = `
+          update qnas
+          set hits = hits + 1
+          where id = ?
+        `;
+      const qnaUpdate = await sequelize.query(qnaUpdateQuery, {
+        replacements: [qnaId],
+        type: sequelize.QueryTypes.UPDATE,
+        transaction,
+      });
+      await transaction.commit();
     }
 
-    const qnaUpdateQuery = `
-      update qnas
-      set hits = hits + 1
-      where id = ?
-    `;
-    const qnaUpdate = await sequelize.query(qnaUpdateQuery, {
-      replacements: [qnaId],
-      type: sequelize.QueryTypes.UPDATE,
-      transaction,
-    });
-    await transaction.commit();
-
     const qnaQuery = `
-      select * from qnas
-      where id = ?
+      SELECT q.id AS qnaId, q.title, q.content, q.hits, q.createdAt AS qnaCreatedAt, q.writer,
+      c.id AS commentId, c.comment, c.createdAt AS commentCreatedAt, c.commenter
+      FROM qnas AS q
+      LEFT JOIN qna_comments AS c ON c.qna_id = q.id
+      WHERE q.id = ?;
       `;
     const qna = await sequelize.query(qnaQuery, {
       replacements: [qnaId],
       type: sequelize.QueryTypes.SELECT,
     });
+    const qnaGroup = groupedData(qna, 'qna');
 
-    return res.status(200).json({ code: 200, qna });
+    return res.status(200).json({ code: 200, qnaGroup });
   } catch (error) {
     await transaction.rollback();
     console.error(error);
