@@ -25,15 +25,6 @@ exports.createConsult = async (req, res, next) => {
     // });
     // return res.status(200).json({ code: 200, consult });
 
-    // 임시 SQL 적용 코드 - 작동x
-    // const sql =
-    //   'INSERT INTO consults (consult_writer, title, content) VALUES (?, ?, ?)';
-    // const [result] = await pool.query(sql, [req.user.id, title, content]);
-    // const consultId = result.insertId;
-    // return res.status(200).json({
-    //   code: 200,
-    //   consult: { id: consultId, consult_writer: req.user.id, title, content },
-    // });
     // Query
     const query = `
       INSERT INTO consults (writer, title, content, createdAt, updatedAt) 
