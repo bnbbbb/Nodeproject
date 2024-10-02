@@ -127,7 +127,6 @@ exports.editQuotation = async (req, res, next) => {
     const updateFields = [];
     const replacements = [];
 
-    // 업데이트할 필드 수집
     updatableFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         updateFields.push(`${field} = ?`);

@@ -5,9 +5,7 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { sequelize } = require('./models/mysql');
 // 스웨거
-// const { swaggerUi } = require('./swagger/swagger');
 const swaggerUi = require('swagger-ui-express');
-// const swaggerUi = require('swagger-ui-express');
 const swaggerFile = require('./swagger/swagger-output.json'); // 생성된 파일 가져오기
 
 dotenv.config();

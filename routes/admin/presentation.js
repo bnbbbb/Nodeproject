@@ -1,6 +1,6 @@
 const express = require('express');
 
-const uploadImage = require('../../utils/s3Utils');
+const { uploadImage } = require('../../utils/s3Utils');
 const {
   createPresentation,
   listPresentation,
@@ -14,8 +14,8 @@ const router = express.Router();
 router.post(
   '/api/presentation/create',
   uploadImage.single('image'),
-  isAdmin,
   verifyToken,
+  isAdmin,
   createPresentation
 );
 
@@ -24,8 +24,8 @@ router.get('/api/presentation/list', listPresentation);
 router.patch(
   '/api/presentation/edit/:presentationId',
   uploadImage.single('image'),
-  isAdmin,
   verifyToken,
+  isAdmin,
   editPresentation
 );
 

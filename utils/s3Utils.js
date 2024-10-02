@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { S3Client } = require('@aws-sdk/client-s3');
+const { S3Client, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
@@ -40,4 +40,32 @@ const uploadImage = multer({
   }),
 });
 
-module.exports = uploadImage;
+// db 이미지url 분리
+const extractKeyFromUrl = (url) => {
+  const urlParts = url.split('.com/');
+  if (urlParts.length > 1) {
+    return urlParts[1];
+  }
+  throw new Error('S3 URL이 유효하지 않습니다.');
+};
+
+// s3 이미지 삭제
+const deleteImage = async (fileUrl) => {
+  try {
+    const key = extractKeyFromUrl(fileUrl);
+    const deleteParams = {
+      Bucket: process.env.AWS_BUCKET,
+      Key: key,
+    };
+
+    const command = new DeleteObjectCommand(deleteParams);
+    const response = await s3.send(command);
+    console.log('삭제 성공:', response);
+    return response;
+  } catch (error) {
+    console.error('삭제 실패:', error);
+    throw error;
+  }
+};
+
+module.exports = { uploadImage, deleteImage };

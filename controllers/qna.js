@@ -1,21 +1,19 @@
 const { Op } = require('sequelize');
 const { QnA } = require('../models/mysql/category');
 const User = require('../models/mysql/user');
-const pool = require('../utils/sql');
-const jwt = require('jsonwebtoken');
 const { QnAComment } = require('../models/mysql/comment');
 const moment = require('moment-timezone');
 const { verifyPost } = require('../utils/postUtils');
 const { sequelize } = require('../models/mysql');
 const requestIp = require('request-ip');
-const { v4: uuidv4 } = require('uuid');
 const hitsPost = require('../utils/hitsPost');
 const handleError = require('../utils/utils');
-const verifyPostExists = require('../utils/postUtils');
 const { groupedData } = require('../utils/commentUtils');
 // QnA 관련 메소드
 
 exports.createQnA = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { title, content } = req.body;
     const userId = req.user.id;
@@ -38,12 +36,14 @@ exports.createQnA = async (req, res, next) => {
     const qnas = await sequelize.query(query, {
       replacements: [userId, title, content], // 세 개의 값을 전달
       type: sequelize.QueryTypes.INSERT,
+      transaction,
     });
+    await transaction.commit();
     return res
       .status(201)
       .json({ code: 201, message: 'QnA가 성공적으로 생성되었습니다.' });
   } catch (error) {
-    console.error(error);
+    await transaction.rollback();
     next(error);
   }
 };
@@ -88,8 +88,6 @@ exports.qnaList = async (req, res, next) => {
     });
     return res.status(200).json({ code: 200, formatteQnAs });
   } catch (error) {
-    console.error(error);
-    // return res.status(500).json({ code: 500, message: error.message });
     next(error);
   }
 };
@@ -152,10 +150,7 @@ exports.searchQnA = async (req, res, next) => {
   try {
     const searchQuery = req.query.query;
     if (!searchQuery) {
-      const error = new Error('검색어가 필요합니다.');
-      error.status = 400;
-
-      throw error;
+      return handleError(404, '검색어가 필요합니다.');
     }
 
     // ORM
@@ -235,6 +230,7 @@ exports.searchQnA = async (req, res, next) => {
 
 // qna 수정
 exports.editQnA = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { qnaId } = req.params;
     const updateData = req.body;
@@ -277,6 +273,7 @@ exports.editQnA = async (req, res, next) => {
         qnaId,
       },
       type: sequelize.QueryTypes.UPDATE,
+      transaction,
     });
 
     if (updatedCount === 0) {
@@ -289,13 +286,14 @@ exports.editQnA = async (req, res, next) => {
 
     return res.status(200).json({ code: 200, message: updateQnA });
   } catch (error) {
-    console.error(error);
+    await transaction.rollback();
     next(error);
   }
 };
 
 // 삭제
 exports.deleteQnA = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { qnaId } = req.params;
     const userId = req.user.id;
@@ -313,6 +311,7 @@ exports.deleteQnA = async (req, res, next) => {
     const [qna] = await sequelize.query(findQuery, {
       replacements: { qnaId },
       type: sequelize.QueryTypes.SELECT,
+      transaction,
     });
 
     await verifyPost(qna, userId, 'QnA');
@@ -327,6 +326,7 @@ exports.deleteQnA = async (req, res, next) => {
 
     return res.status(200).json({ message: 'QnA 삭제에 성공하였습니다.' });
   } catch (error) {
+    await transaction.rollback();
     next(error);
   }
 };

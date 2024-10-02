@@ -11,6 +11,7 @@ const handleError = require('../utils/utils');
 
 // 리뷰 관련 메소드
 exports.createReview = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { title, content } = req.body;
     const userId = req.user.id;
@@ -32,19 +33,19 @@ exports.createReview = async (req, res, next) => {
     const reviews = await sequelize.query(query, {
       replacements: [userId, title, content], // 세 개의 값을 전달
       type: sequelize.QueryTypes.INSERT,
+      transaction,
     });
-
+    await transaction.commit();
     return res
       .status(201)
       .json({ code: 201, message: '리뷰가 성공적으로 생성되었습니다.' });
   } catch (error) {
-    console.error(error);
+    await transaction.rollback();
     next(error);
   }
 };
 
 // 전체 리뷰 보기
-// TODO 사용자 이름도 같이
 exports.reviewList = async (req, res, next) => {
   try {
     // const reviews = await Review.findAll();
@@ -150,9 +151,7 @@ exports.searchReview = async (req, res, next) => {
   try {
     const searchQuery = req.query.query;
     if (!searchQuery) {
-      const error = new Error('검색어가 필요합니다.');
-      error.status = 400;
-      throw error;
+      return handleError(404, '검색어가 필요합니다.');
     }
     // ORM
 
@@ -230,6 +229,7 @@ exports.searchReview = async (req, res, next) => {
 
 // 리뷰 수정
 exports.editReview = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { reviewId } = req.params;
     const updateData = req.body;
@@ -272,6 +272,7 @@ exports.editReview = async (req, res, next) => {
         reviewId,
       },
       type: sequelize.QueryTypes.UPDATE,
+      transaction,
     });
 
     if (updatedCount === 0) {
@@ -284,13 +285,14 @@ exports.editReview = async (req, res, next) => {
 
     return res.status(200).json({ code: 200, message: updateReview });
   } catch (error) {
-    console.error(error);
+    await transaction.rollback();
     next(error);
   }
 };
 
 // 삭제
 exports.deleteReview = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
     const { reviewId } = req.params;
     const userId = req.user.id;
@@ -318,10 +320,13 @@ exports.deleteReview = async (req, res, next) => {
     await sequelize.query(deleteQuery, {
       replacements: { reviewId },
       type: sequelize.QueryTypes.DELETE,
+      transaction,
     });
+    await transaction.commit();
 
     return res.status(200).json({ message: '리뷰 삭제에 성공하였습니다.' });
   } catch (error) {
+    await transaction.rollback();
     next(error);
   }
 };
@@ -329,7 +334,6 @@ exports.deleteReview = async (req, res, next) => {
 // 상세 페이지
 exports.getReview = async (req, res, next) => {
   const transaction = await sequelize.transaction();
-
   try {
     const { reviewId } = req.params;
     const reviewQueryFirst = `

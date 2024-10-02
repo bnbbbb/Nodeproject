@@ -32,7 +32,7 @@ exports.createConsult = async (req, res, next) => {
     `;
 
     const consults = await sequelize.query(query, {
-      replacements: [userId, title, content], // 세 개의 값을 전달
+      replacements: [userId, title, content],
       type: sequelize.QueryTypes.INSERT,
       transaction,
     });
@@ -42,7 +42,6 @@ exports.createConsult = async (req, res, next) => {
       .json({ code: 201, message: 'consult가 성공적으로 생성되었습니다.' });
   } catch (error) {
     await transaction.rollback();
-    console.error(error);
     next(error);
   }
 };
@@ -152,10 +151,7 @@ exports.searchConsult = async (req, res, next) => {
   try {
     const searchQuery = req.query.query;
     if (!searchQuery) {
-      const error = new Error('검색어가 필요합니다.');
-      error.status = 400;
-
-      throw error;
+      return handleError(404, '검색어가 필요합니다.');
     }
 
     // ORM
@@ -290,7 +286,6 @@ exports.editConsult = async (req, res, next) => {
     return res.status(200).json({ code: 200, message: updateConsult });
   } catch (error) {
     await transaction.rollback();
-    console.error(error);
     next(error);
   }
 };
