@@ -7,7 +7,7 @@ const { sequelize } = require('./models/mysql');
 // 스웨거
 const swaggerUi = require('swagger-ui-express');
 const swaggerFile = require('./swagger/swagger-output.json'); // 생성된 파일 가져오기
-
+const cors = require('cors');
 dotenv.config();
 const authRouter = require('./routes/auth');
 const reviewRouter = require('./routes/review');
@@ -18,6 +18,7 @@ const foundationRouter = require('./routes/foundation');
 const adminFdRouter = require('./routes/admin/foundation');
 const presentationRouter = require('./routes/admin/presentation');
 const quotationRouter = require('./routes/admin/quotation');
+const paymentRouter = require('./routes/payment');
 const connection = require('./models/mongo/connection');
 const passportConfig = require('./passport');
 // 조회수
@@ -43,7 +44,7 @@ connection();
 // 조회수
 app.use(cookieParser());
 //
-
+app.use(cors());
 app.use(morgan('dev'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -60,6 +61,7 @@ app.use('', commentRouter);
 app.use('', foundationRouter);
 app.use('', presentationRouter);
 app.use('', quotationRouter);
+app.use('', paymentRouter);
 
 // admin
 app.use('/api/foundation', adminFdRouter);

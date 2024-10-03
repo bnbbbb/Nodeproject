@@ -81,6 +81,10 @@ class Quotation extends Sequelize.Model {
       foreignKey: 'foundation_id',
       targetKey: 'id',
     });
+    // db.Quotation.hasMany(db.Payment, {
+    //   foreignKey: 'quotationId',
+    //   sourceKey: 'id',
+    // });
   }
 }
 

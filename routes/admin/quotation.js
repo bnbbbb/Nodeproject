@@ -11,15 +11,15 @@ const router = express.Router();
 
 router.post(
   '/api/quotation/create/:foundationId',
-  isAdmin,
   verifyToken,
+  isAdmin,
   createQuotation
 );
 
 router.patch(
   '/api/quotation/edit/:quotationId',
-  isAdmin,
   verifyToken,
+  isAdmin,
   editQuotation
 );
 
